@@ -1,0 +1,31 @@
+# Teradata Environment Configuration
+# Copy this file to config/environments.yaml and fill in your credentials.
+# NEVER commit config/environments.yaml — it contains secrets.
+
+# The target key sets which environment is active by default.
+target: dev
+
+environments:
+  dev:
+    host: dev-td.company.com
+    port: 1025
+    database: dev_sandbox
+    user: my_user
+    password: my_password
+    logmech: TD2          # TD2, LDAP, KRB5, TDNEGO
+
+  # uat:
+  #   host: uat-td.company.com
+  #   port: 1025
+  #   database: uat_db
+  #   user: my_user
+  #   password: my_password
+  #   logmech: TD2
+
+  # prod:
+  #   host: prod-td.company.com
+  #   port: 1025
+  #   database: prod_db
+  #   user: my_user
+  #   password: my_password
+  #   logmech: LDAP

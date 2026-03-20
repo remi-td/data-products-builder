@@ -1,0 +1,10 @@
+# tq binary (installed locally per developer)
+scripts/tq/
+
+# Environment config contains credentials — never commit
+config/environments.yaml
+design-standards/
+
+# Generated code and doc isn't tracked
+src/
+docs/
