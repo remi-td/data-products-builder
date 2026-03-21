@@ -8,3 +8,6 @@ design-standards/
 # Generated code and doc isn't tracked
 src/
 docs/
+src.zip
+.gitignore
+.DS_Store

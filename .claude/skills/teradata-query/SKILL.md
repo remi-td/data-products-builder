@@ -1,6 +1,6 @@
 ---
 name: teradata-query
-description: Install, configure, and use the tq CLI tool (https://github.com/remi-td/tq/) to run Teradata queries — ad-hoc during development or as part of data product job execution.
+description: Install, configure, and use the tq CLI tool (https://github.com/remi-td/tq/) to run Teradata queries -- ad-hoc during development or as part of data product job execution.
 user-invocable: true
 argument-hint: [query or sql-file]
 ---
@@ -11,7 +11,7 @@ You are running Teradata queries using the **tq** CLI tool.
 
 ## What is tq?
 
-tq is a lightweight, Rust-powered CLI client for Teradata databases. It provides one-shot queries, batch SQL file execution, and an interactive REPL — with no Java dependencies.
+tq is a lightweight, Rust-powered CLI client for Teradata databases. It provides one-shot queries, batch SQL file execution, and an interactive REPL -- with no Java dependencies.
 
 Repository: https://github.com/remi-td/tq/
 
@@ -19,7 +19,15 @@ Repository: https://github.com/remi-td/tq/
 
 Before running any query, verify **both** prerequisites in order:
 
-### 1. Environment Configuration
+### 1. tq Installation
+
+```bash
+tq --version
+```
+
+**If missing**, follow the **tq Installation** section below.
+
+### 2. Environment Configuration & Connection
 
 Check if `config/environments.yaml` exists:
 
@@ -29,23 +37,54 @@ cat config/environments.yaml
 
 **If missing**, guide the user through setup (see **Environment Setup** below).
 
-**If present**, parse it to determine the active environment (the `target` key) and build the `TQ_LOGON` string.
-
-### 2. tq Installation
+**If present**, source the connection helper script:
 
 ```bash
-tq --version
+source scripts/tq-connect.sh
 ```
 
-**If missing**, follow the **tq Installation** section below.
+This sets `TQ_LOGON` and `TQ_LOGMECH` for the session. Verify with:
+
+```bash
+tq ping
+```
 
 **If both are ready**, skip to **Running Queries**.
 
 ---
 
+## tq Installation
+
+Install the pre-built binary using the official installer:
+
+```bash
+export TQ_INSTALL_DIR="${PROJECT_ROOT}/scripts/tq/bin"
+curl -sSL https://raw.githubusercontent.com/remi-td/tq/master/install.sh | sh -s -- --accept-license
+```
+
+The `--accept-license` flag is required for non-interactive installs (the Teradata driver is bundled and requires license acceptance).
+
+This downloads the correct binary for your platform (macOS/Linux, Intel/ARM), verifies the checksum, and installs to `scripts/tq/bin/tq`.
+
+Add to PATH for the session:
+
+```bash
+export PATH="${PROJECT_ROOT}/scripts/tq/bin:$PATH"
+```
+
+**Verify:**
+
+```bash
+tq --version
+```
+
+> **Note:** `scripts/tq/` is gitignored -- the binary is local to each developer's machine.
+
+---
+
 ## Environment Setup
 
-The project uses a dbt-style YAML config at `config/environments.yaml` to manage Teradata connection environments. This file contains credentials and is **gitignored** — never committed.
+The project uses a dbt-style YAML config at `config/environments.yaml` to manage Teradata connection environments. This file contains credentials and is **gitignored** -- never committed.
 
 A committed example lives at `config/environments.yaml.example`.
 
@@ -60,12 +99,12 @@ cp config/environments.yaml.example config/environments.yaml
 2. **Ask the user for their connection details:**
 
 > I need your Teradata connection details for the **dev** environment:
-> - **Host** — Teradata server hostname (e.g. `dev-td.company.com`)
-> - **Port** — usually `1025`
-> - **Database** — default database to connect to
+> - **Host** -- Teradata server hostname (e.g. `dev-td.company.com`)
+> - **Port** -- usually `1025`
+> - **Database** -- default database to connect to
 > - **Username**
 > - **Password**
-> - **Auth mechanism** — TD2 (default), LDAP, KRB5, or TDNEGO
+> - **Auth mechanism** -- TD2 (default), LDAP, KRB5, or TDNEGO
 
 3. **Write the file** with the provided values. Always include at least a `dev` environment and set `target: dev`.
 
@@ -121,59 +160,39 @@ Or the user can request a specific environment when invoking queries: "run this 
 
 ## Connecting tq to an Environment
 
-Read `config/environments.yaml`, extract the environment matching the `target` key, and export the `TQ_LOGON` environment variable before running tq:
+**Always use `scripts/tq-connect.sh`** to set up the connection. Never export `TQ_LOGON` inline with each tq command -- this exposes the password in shell history and process lists.
 
 ```bash
-export TQ_LOGON="{user}:{password}@{host}:{port}/{database}"
-export TQ_LOGMECH="{logmech}"
+# Connect to the default (target) environment -- do this ONCE per session
+source scripts/tq-connect.sh
+
+# Connect to a specific environment
+source scripts/tq-connect.sh prod
 ```
 
-For example, given the dev environment above:
+The script reads `config/environments.yaml`, extracts the environment config, and exports `TQ_LOGON` and `TQ_LOGMECH`. These variables persist for the rest of the shell session -- all subsequent `tq` commands use them automatically.
 
-```bash
-export TQ_LOGON="my_user:my_password@dev-td.company.com:1025/dev_sandbox"
-export TQ_LOGMECH="TD2"
-```
+**When the user requests a specific environment** (e.g. "run against prod"), re-source the script with the environment name.
 
-**When the user requests a specific environment** (e.g. "run against prod"), use that environment's config instead of the `target` default.
-
-**Important:** Always construct `TQ_LOGON` from `config/environments.yaml` — never ask the user for credentials ad-hoc if the config file exists.
-
----
-
-## tq Installation
-
-tq requires the Rust toolchain. Install it if not present:
-
-```bash
-# Install Rust (if not already available)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source "$HOME/.cargo/env"
-```
-
-Then install tq from source into the project's `scripts/` directory:
-
-```bash
-# Clone and build tq
-cd /tmp
-git clone https://github.com/remi-td/tq.git
-cd tq
-cargo install --path . --root "${PROJECT_ROOT}/scripts/tq"
-```
-
-After installation, the binary is at `scripts/tq/bin/tq`. Add it to PATH or invoke it directly.
-
-**Verify:**
-
-```bash
-scripts/tq/bin/tq --version
-```
-
-> **Note:** `scripts/tq/` is gitignored — the binary is local to each developer's machine.
+**Important:** Always construct `TQ_LOGON` from `config/environments.yaml` -- never ask the user for credentials ad-hoc if the config file exists.
 
 ---
 
 ## Running Queries
+
+### Pre-Flight: Sanitize SQL Files
+
+Before executing any generated SQL file, run the sanitizer to replace non-ASCII characters (em dashes, smart quotes, arrows) that Teradata rejects with error 6706:
+
+```bash
+scripts/sanitize-sql.sh path/to/file.sql
+```
+
+For an entire module directory:
+
+```bash
+scripts/sanitize-sql.sh src/{product-name}/01-semantic/*.sql
+```
 
 ### One-Shot Query
 
@@ -189,7 +208,13 @@ tq query --file src/{product-name}/01-semantic/01-data_product_map.sql
 
 ### Execute Multiple SQL Files (deployment)
 
-Run files in order during data product deployment:
+Use the deployment script for automated phased execution:
+
+```bash
+scripts/deploy.sh {product-name}
+```
+
+Or run files manually in order:
 
 ```bash
 for f in src/{product-name}/01-semantic/*.sql; do
@@ -260,7 +285,13 @@ tq query "SHOW TABLE MyProduct_Domain.Party_H"
 
 ### During Deployment (execute DDL/DML)
 
-Execute generated SQL files in module deployment order:
+Use the deployment script for automated phased execution:
+
+```bash
+scripts/deploy.sh {product-name}
+```
+
+Or execute generated SQL files manually in module deployment order:
 
 ```bash
 # Phase 1: Memory + Semantic
@@ -295,17 +326,20 @@ tq query "SELECT TOP 10 * FROM {Product}_Domain.Party_Current"
 ## Error Handling
 
 - If a query fails, tq prints the Teradata error code and message to stderr.
-- For batch file execution, stop on first error — do not continue executing subsequent files.
+- For batch file execution, stop on first error -- do not continue executing subsequent files.
 - Always review error output before retrying. Common issues:
-  - **3807** — Object does not exist (check database/table name)
-  - **3706** — Syntax error (validate SQL with the teradata-sql skill first)
-  - **2801** — Authentication failed (check environment config in `config/environments.yaml`)
+  - **3807** -- Object does not exist (check database/table name)
+  - **3706** -- Syntax error (validate SQL with the teradata-sql skill first)
+  - **2801** -- Authentication failed (check environment config in `config/environments.yaml`)
+  - **6706** -- Untranslatable character (run `scripts/sanitize-sql.sh` on the SQL file)
 
 ## Key Rules
 
 - **Never hardcode credentials** in SQL files, scripts, or committed configuration.
-- **Always use `config/environments.yaml`** as the single source for connection details — never ask for credentials ad-hoc if the file exists.
+- **Always use `config/environments.yaml`** as the single source for connection details -- never ask for credentials ad-hoc if the config file exists.
+- **Always use `source scripts/tq-connect.sh`** to set connection variables once per session -- never export `TQ_LOGON` inline with each tq command.
+- **Always sanitize SQL files** with `scripts/sanitize-sql.sh` before execution to strip non-ASCII characters.
 - **Always use `--file`** for executing generated SQL rather than pasting long statements inline.
-- **Follow deployment order** — Memory + Semantic first, then Domain + Observability, then Search + Prediction.
+- **Follow deployment order** -- Memory + Semantic first, then Domain + Observability, then Search + Prediction.
 - **Validate SQL** with the **teradata-sql** skill before executing DDL against production.
-- **Confirm environment** before executing against non-dev targets — always ask the user before running against uat or prod.
+- **Confirm environment** before executing against non-dev targets -- always ask the user before running against uat or prod.

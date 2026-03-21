@@ -59,12 +59,22 @@ Phase 1: Memory + Semantic → Phase 2: Domain + Observability → Phase 3: Sear
 ## Consistency Checks
 
 Before writing any DDL, verify across all design standards:
-- Boolean flags use `BYTEINT NOT NULL DEFAULT 1/0` — never `CHAR(1)`
+- Boolean flags use `BYTEINT NOT NULL DEFAULT 1/0` -- never `CHAR(1)`
 - Boolean columns use the `is_` prefix
-- Filter values use `= 1` or `= 0` — never `= 'Y'` or `= 'N'`
-- Temporal tables use non-unique `PRIMARY INDEX` — never `UNIQUE PRIMARY INDEX`
+- Filter values use `= 1` or `= 0` -- never `= 'Y'` or `= 'N'`
+- Temporal tables use non-unique `PRIMARY INDEX` -- never `UNIQUE PRIMARY INDEX`
 
 **Stop and report any inconsistencies before proceeding.** List the table name, column name, current definition, and corrected definition.
+
+## Teradata DDL Syntax (mandatory)
+
+These are hard Teradata syntax rules. The **teradata-sql** skill has full details, but the critical ones are:
+
+1. **PRIMARY INDEX goes AFTER the closing `)` of the column list** -- never inside it
+2. **No inline COMMENT in CREATE TABLE** -- use separate `COMMENT ON COLUMN` statements
+3. **No ORDER BY in view definitions** -- Teradata does not allow it
+4. **No trailing comma before closing `)`** in CREATE TABLE
+5. **ASCII only** -- no em dashes, smart quotes, or arrows. Run `scripts/sanitize-sql.sh` before deployment
 
 ## Documentation Capture Protocol
 

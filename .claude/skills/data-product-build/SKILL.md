@@ -126,6 +126,8 @@ docs/{product-name}/
 
 Update `docs/releases.md` when a data product reaches deployment.
 
+Update `docs/lessons-learned.md` with lessons learned from this data product build: these are not learnings related to teh data logic, but to the process of building it, usage of the tools, SQL syntax, etc... 
+
 ## Key Rules
 
 - **Design standards are the master source of truth.** Read them from `design-standards/` before starting any module design.
