@@ -1,16 +1,74 @@
-# Agentic data product builder
+# AI-Native Data Product Builder
 
-This agentic framework uses the AI-Native Data Product Design Standards.
-The Standards must be cloned under the `design-standards` directory.
+An agentic framework for building AI-Native Data Products on Teradata. Uses the [AI-Native Data Product Design Standards](https://github.com/NathanG-TD/ai-native-data-products) as the single source of truth and agentic prompts to orchestrate multi-module data product design and deployment.
 
-## How to use
+## Framework-Agnostic Design
 
-1. Clone the design standards: `git clone <url> design-standards`
-2. Run Claude Code and use the `data-product-build` skill to design and deploy a data product.
+This repo is tool-agnostic. It follows the [AGENTS.md](https://github.com/anthropics/agents-md) and [Agent Skills](https://agentskills.io) open standards so you can use your preferred AI coding tool:
+
+| Tool | Setup |
+|------|-------|
+| **Claude Code** | `make setup` |
+| **Cursor** | `make setup-design-standards && make setup-cursor` |
+| **Codex** | `make setup-design-standards` (reads `AGENTS.md` natively) |
+| **Other** | Read `AGENTS.md` for project context; reference `.agents/prompts/` for agentic workflows |
+
+## Project Structure
+
+```
+AGENTS.md                ← Framework-agnostic project instructions
+.agents/
+  prompts/               ← Portable agentic prompts (tool-agnostic)
+  skills/                ← Skill wrappers (frontmatter + import from prompts)
+design-standards/        ← 8 design standard docs (cloned — master source of truth)
+scripts/                 ← Deployment, sanitization, and tooling scripts
+src/                     ← Data product source code (per product, per module)
+docs/                    ← Data product documentation and release notes
+config/                  ← Connection configurations
+.claude/                 ← Claude Code specific (symlinks + pointer to AGENTS.md)
+Makefile                 ← Setup automation
+```
+
+## Getting Started
+
+```bash
+# 1. Clone this repo
+git clone <this-repo-url> && cd ai-native-data-products
+
+# 2. Full setup (clones design standards + configures your tool)
+make setup            # Claude Code (default)
+make setup-cursor     # Cursor
+make setup-codex      # Codex (no-op — reads AGENTS.md natively)
+
+# 3. Build a data product
+# In Claude Code:  /data-product-build [product-name]
+# In other tools:  reference .agents/prompts/data-product-build.md
+```
+
+## Makefile Targets
+
+| Target | Description |
+|--------|-------------|
+| `make setup` | Full setup: clone design standards + configure Claude Code |
+| `make setup-design-standards` | Clone or update design standards from upstream |
+| `make setup-claude` | Create `.claude/` symlinks and CLAUDE.md pointer |
+| `make setup-cursor` | Generate `.cursorrules` from AGENTS.md |
+| `make setup-codex` | No-op (Codex reads AGENTS.md natively) |
+| `make clean-design-standards` | Remove cloned design standards |
+| `make help` | Show all targets |
+
+## Agentic Prompts
+
+Portable prompts in `.agents/prompts/`:
+
+| Prompt | Purpose |
+|--------|---------|
+| `data-product-build.md` | End-to-end build orchestration (7-deliverable sequence) |
+| `data-product-design.md` | Individual module design applying design standards |
+| `data-product-use.md` | Discover and query a deployed data product |
+| `teradata-sql.md` | SQL generation & validation conventions |
+| `teradata-query.md` | Query execution via the tq CLI tool |
 
 ## Todo
-- [ ] Create an init/make script to clone the design standards 
-- [ ] Track the changes in design standards and create an agent/skill to refresh skills if needed.
-- [ ] Move `.claude` to framework agnostic "agentic" directory/AGENT.md and create init script to generate eg. Claude/Cursor/Codex etc. structures with links.
 
-
+- [ ] Track changes in design standards and refresh prompts if needed
