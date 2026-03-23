@@ -54,6 +54,8 @@ Phase 1: Memory + Semantic → Phase 2: Domain + Observability → Phase 3: Sear
    - Semantic module registration INSERTs (entity_metadata, column_metadata, table_relationship, data_product_map)
    - Documentation capture INSERTs into `{ProductName}_Memory` (Module_Registry, Design_Decision, Business_Glossary, Query_Cookbook, Change_Log)
 
+   > **Semantic seed data completeness:** When designing the Semantic module, entity_metadata must register entities from **ALL** modules in the data product (Memory, Semantic, AND Domain), not just the module being designed. This is easy to miss — verify that every table across every module has an entity_metadata row.
+
 4. **Present work for review** before proceeding.
 
 ## Consistency Checks

@@ -29,13 +29,13 @@ tq --version
 
 ### 2. Environment Configuration & Connection
 
-Check if `config/environments.yaml` exists:
+Try connection sources **in priority order**:
+
+#### Option A: `config/environments.yaml` (preferred for project work)
 
 ```bash
 cat config/environments.yaml
 ```
-
-**If missing**, guide the user through setup (see **Environment Setup** below).
 
 **If present**, source the connection helper script:
 
@@ -43,13 +43,41 @@ cat config/environments.yaml
 source scripts/tq-connect.sh
 ```
 
-This sets `TQ_LOGON` and `TQ_LOGMECH` for the session. Verify with:
+This sets `TQ_LOGON` and `TQ_LOGMECH` for the session.
+
+#### Option B: User-provided connection string or environment variable
+
+If `config/environments.yaml` does not exist, the user may provide connection details via an environment variable, a direct string, or other means. Convert whatever they provide to `TQ_LOGON` format (`user:pass@host:port/db`):
+
+```bash
+# If the user provides a URI with a scheme prefix (e.g. teradata://user:pass@host:port/db):
+export TQ_LOGON="${USER_PROVIDED_VAR#teradata://}"
+
+# If the user provides a plain connection string:
+export TQ_LOGON="user:pass@host:port/db"
+```
+
+> **Important:** Do NOT use pipes (e.g. `echo "$VAR" | sed ...`) to set TQ_LOGON — the pipe leaves stdin in a piped state that conflicts with tq's query argument detection (see **Stdin Conflict** below). Use shell parameter expansion instead.
+
+#### Option C: No connection details available
+
+Guide the user through setup (see **Environment Setup** below).
+
+#### Verify connectivity
+
+Whichever option was used, confirm with `tq ping` — this is a **database-level** connectivity test (connects to Teradata, executes a query, reports latency), not a network ping:
 
 ```bash
 tq ping
 ```
 
-**If both are ready**, skip to **Running Queries**.
+You can also pass credentials directly via `-l`/`--logon` without setting environment variables — useful for quick one-off checks:
+
+```bash
+tq -l "user:pass@host:port/db" ping
+```
+
+**If ready**, skip to **Running Queries**.
 
 ---
 
@@ -175,6 +203,36 @@ The script reads `config/environments.yaml`, extracts the environment config, an
 **When the user requests a specific environment** (e.g. "run against prod"), re-source the script with the environment name.
 
 **Important:** Always construct `TQ_LOGON` from `config/environments.yaml` -- never ask the user for credentials ad-hoc if the config file exists.
+
+---
+
+## Stdin Conflict: Use `--file` in Automated Environments
+
+**Critical:** When running tq from automation tools, CI pipelines, or AI agent harnesses (e.g. Claude Code's Bash tool), stdin is often in a piped state. tq detects this as a second input source and rejects the command with:
+
+```
+Error: Invalid configuration: Multiple input sources provided: query argument, piped stdin.
+```
+
+**Workaround:** Always use `--file` instead of positional query arguments:
+
+```bash
+# WRONG in automated environments:
+tq query "SELECT 1"
+
+# CORRECT — write SQL to a temp file first:
+echo "SELECT 1" > /tmp/q.sql && tq query --file /tmp/q.sql
+
+# CORRECT — for multi-statement or complex queries:
+cat > /tmp/q.sql <<'EOSQL'
+SELECT DatabaseName FROM DBC.DatabasesV
+WHERE DatabaseName LIKE 'MyProduct%'
+ORDER BY DatabaseName
+EOSQL
+tq query --file /tmp/q.sql
+```
+
+**When does this NOT apply?** Interactive terminal sessions (e.g. the user running tq directly) work fine with positional arguments. The conflict only occurs when stdin is piped by the parent process.
 
 ---
 
@@ -325,6 +383,29 @@ tq query "SELECT TOP 10 * FROM {Product}_Domain.Party_Current"
 
 ## Error Handling
 
+### Connection Failures
+
+If `tq ping` or any `tq` command fails with a connection error, **always validate the connection string format before assuming a network issue**:
+
+1. **Check for scheme prefixes:** `TQ_LOGON` must be `user:pass@host:port/db` — no `teradata://`, `jdbc:`, or other URI scheme prefix. If the source variable (e.g. `$DATABASE_URI`) contains a scheme, strip it:
+   ```bash
+   export TQ_LOGON="${DATABASE_URI#teradata://}"
+   ```
+
+2. **Check the string structure:** It must match `user:password@host:port/database`. Common issues:
+   - Missing port (default is `1025`)
+   - Extra path segments or query parameters from JDBC/URI formats
+   - URL-encoded characters that tq doesn't decode (e.g. `%40` instead of `@`)
+
+3. **Inspect the actual value** (mask the password) to verify format:
+   ```bash
+   echo "$TQ_LOGON" | sed 's/:[^:@]*@/:***@/'
+   ```
+
+4. **Only after confirming the string is well-formed**, investigate network issues (host reachability, firewall, VPN, environment not running).
+
+### Query Errors
+
 - If a query fails, tq prints the Teradata error code and message to stderr.
 - For batch file execution, stop on first error -- do not continue executing subsequent files.
 - Always review error output before retrying. Common issues:
@@ -336,8 +417,8 @@ tq query "SELECT TOP 10 * FROM {Product}_Domain.Party_Current"
 ## Key Rules
 
 - **Never hardcode credentials** in SQL files, scripts, or committed configuration.
-- **Always use `config/environments.yaml`** as the single source for connection details -- never ask for credentials ad-hoc if the config file exists.
-- **Always use `source scripts/tq-connect.sh`** to set connection variables once per session -- never export `TQ_LOGON` inline with each tq command.
+- **Use `config/environments.yaml`** as the primary source for connection details. If it doesn't exist, use whatever connection info the user provides. Never ask for credentials ad-hoc if a source already exists.
+- **Set `TQ_LOGON` once per session** -- via `source scripts/tq-connect.sh` (Option A) or by converting user-provided credentials (Option B). Never export `TQ_LOGON` inline with each tq command. Avoid pipes when setting TQ_LOGON -- use shell parameter expansion.
 - **Always sanitize SQL files** with `scripts/sanitize-sql.sh` before execution to strip non-ASCII characters.
 - **Always use `--file`** for executing generated SQL rather than pasting long statements inline.
 - **Follow deployment order** -- Memory + Semantic first, then Domain + Observability, then Search + Prediction.

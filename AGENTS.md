@@ -21,19 +21,20 @@ This agentic system automates the creation of AI-Native Data Products on Teradat
 
 **Deployment order matters**: Phase 1 (Memory + Semantic) → Phase 2 (Domain + Observability) → Phase 3 (Search + Prediction). Memory and Semantic must exist before any other module deploys.
 
-**Design standards (in `design-standards/`) are the master source of truth.** Prompts and generated artifacts are derived from them — never edited independently. When conflicts arise, design standards win.
+**Design standards (in `design-standards/design-standards/`) are the master source of truth.** The `design-standards/` directory is a git submodule; the actual `.md` files are one level deeper. Prompts and generated artifacts are derived from them — never edited independently. When conflicts arise, design standards win.
 
 ## Project Structure
 
 ```
-AGENTS.md                ← Framework-agnostic project instructions (this file)
-.agents/prompts/         ← Portable agentic prompts (tool-agnostic)
-design-standards/        ← 8 design standard docs (master source of truth)
-scripts/                 ← Deployment, sanitization, and tooling scripts
-src/                     ← Data product source code (per product, per module)
-docs/                    ← Data product documentation and release notes
-config/                  ← Connection configurations (gitignored credentials)
-.claude/                 ← Claude Code specific config (thin wrappers)
+AGENTS.md                            ← Framework-agnostic project instructions (this file)
+.agents/prompts/                     ← Portable agentic prompts (tool-agnostic)
+.agents/skills/                      ← Portable agentic skills (tool-agnostic)
+design-standards/design-standards/   ← 8 design standard .md files (git submodule, nested path)
+scripts/                             ← Deployment, sanitization, and tooling scripts
+src/                                 ← Data product source code (per product, per module)
+docs/                                ← Data product documentation and release notes
+config/                              ← Connection configurations (gitignored credentials)
+.claude/                             ← Claude Code specific config (thin wrappers, symlinks to .agents/skills/)
 ```
 
 ## Key Prompts
