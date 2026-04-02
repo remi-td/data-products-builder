@@ -39,8 +39,9 @@ Makefile                 ← Setup automation
 We provide a Makefile (see next section) to setup the project for different AI coding tools.
 For example, for Claude Code, you get:
 ```
-.claude/                 ← Claude Code specific (symlinks + pointer to AGENTS.md)
-.claude/CLAUDE.md        ← Simply "@../AGENTS.md"
+.claude/                 ← Claude Code specific (symlinks)
+CLAUDE.md                ← Simply "@AGENTS.md" (pointer at root)
+.claudeignore            ← Auto-generated ignore logic for Claude
 ```
 
 ## Getting Started

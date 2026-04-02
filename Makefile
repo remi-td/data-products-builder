@@ -44,11 +44,20 @@ setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md)
 		ln -s ../.agents/skills .claude/skills; \
 	fi
 	@echo "  .claude/skills -> .agents/skills"
-	@if [ ! -f .claude/CLAUDE.md ]; then \
-		echo '@../AGENTS.md' > .claude/CLAUDE.md; \
-		echo "  Created .claude/CLAUDE.md"; \
+	@if [ ! -f CLAUDE.md ]; then \
+		echo '@AGENTS.md' > CLAUDE.md; \
+		echo "  Created CLAUDE.md at root"; \
 	else \
-		echo "  .claude/CLAUDE.md already exists"; \
+		echo "  CLAUDE.md already exists at root"; \
+	fi
+	@if [ ! -f .claudeignore ]; then \
+		echo ".agents/" > .claudeignore; \
+		echo "  Created .claudeignore to prevent double-scanning of .agents/"; \
+	else \
+		if ! grep -q "^.agents/" .claudeignore; then \
+			echo ".agents/" >> .claudeignore; \
+			echo "  Added .agents/ to .claudeignore"; \
+		fi \
 	fi
 	@echo "Claude Code ready."
 
