@@ -2,6 +2,13 @@
 
 An agentic framework for building AI-Native Data Products on Teradata. Uses the [AI-Native Data Product Design Standards](https://github.com/NathanG-TD/ai-native-data-products) as the single source of truth and agentic prompts to orchestrate multi-module data product design and deployment.
 
+## 3-Tier Git Architecture
+
+This framework functions as an orchestrator across three cleanly-separated Git repositories:
+1. **Agentic Framework (Here)**: The primary repo housing the agent prompts, skills, and orchestrator scripts.
+2. **Reference Architecture**: The `design-standards/` git submodule serving as the read-only, master source of truth.
+3. **User Workspace**: The `workspace/` directory, initialized dynamically as an independent Git repository that tracks your generated data products (`workspace/src/` and `workspace/docs/`).
+
 ## Framework-Agnostic Design
 
 This repo is tool-agnostic. It follows the [AGENTS.md](https://github.com/anthropics/agents-md) and [Agent Skills](https://agentskills.io) open standards so you can use your preferred AI coding tool:
@@ -22,8 +29,8 @@ AGENTS.md                ← Framework-agnostic project instructions
   skills/                ← Skill wrappers (frontmatter + import from prompts)
 design-standards/        ← 8 design standard docs (cloned — master source of truth)
 scripts/                 ← Deployment, sanitization, and tooling scripts
-src/                     ← Produced data product source code (per product, per module)
-docs/                    ← Produced data product documentation and release notes
+workspace/src/           ← Produced data product source code (per product, per module)
+workspace/docs/          ← Produced data product documentation and release notes
 config/                  ← Connection configurations for your specific project
 Makefile                 ← Setup automation
 ```
@@ -42,10 +49,13 @@ For example, for Claude Code, you get:
 # 1. Clone this repo
 git clone <this-repo-url> && cd ai-native-data-products
 
-# 2. Full setup (clones design standards + configures your tool)
-make setup            # Claude Code (default)
-make setup-cursor     # Cursor
-make setup-codex      # Codex (no-op — reads AGENTS.md natively)
+# 2. Full setup (clones design standards, configures tool, and initializes local workspace)
+# Optionally, link the workspace to a remote data-products repository:
+make setup [REMOTE=https://github.com/your-org/data-products.git]
+
+# Use these if you are not using Claude Code:
+# make setup-cursor
+# make setup-codex
 
 # 3. Build a data product
 # In Claude Code:  /data-product-build [product-name]
@@ -56,11 +66,12 @@ make setup-codex      # Codex (no-op — reads AGENTS.md natively)
 
 | Target | Description |
 |--------|-------------|
-| `make setup` | Full setup: clone design standards + configure Claude Code |
+| `make setup [REMOTE=...]` | Full setup: clone design standards + configure Claude Code + init local workspace (with optional remote) |
 | `make setup-design-standards` | Clone or update design standards from upstream |
 | `make setup-claude` | Create `.claude/` symlinks and CLAUDE.md pointer |
 | `make setup-cursor` | Generate `.cursorrules` from AGENTS.md |
 | `make setup-codex` | No-op (Codex reads AGENTS.md natively) |
+| `make setup-workspace` | Initializes `workspace/` or sets up a remote for tracking generated files |
 | `make clean-design-standards` | Remove cloned design standards |
 | `make help` | Show all targets |
 

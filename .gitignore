@@ -6,8 +6,7 @@ config/environments.yaml
 design-standards/
 
 # Generated code and doc isn't tracked
-src/
-docs/
+workspace/
 src.zip
 .DS_Store
 

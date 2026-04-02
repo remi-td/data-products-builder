@@ -99,11 +99,11 @@ For each module:
 - Standards applied without change (summary)
 - Documented deviations with business justification
 - Deployment sequence (table creation order, data load order)
-- Update `docs/releases.md` and `docs/lessons-learned.md`
+- Update `workspace/docs/releases.md` and `workspace/docs/lessons-learned.md`
 
 ### Deliverable 8 — Build Process Analysis
 
-After the data product is deployed and validated, generate a build process analysis document using the template at `.agents/skills/data-product-build/templates/build-process-template.md`. Save it to `docs/{product-name}/build-process.md`.
+After the data product is deployed and validated, generate a build process analysis document using the template at `.agents/skills/data-product-build/templates/build-process-template.md`. Save it to `workspace/docs/{product-name}/build-process.md`.
 
 This document is for technical reviewers and captures:
 
@@ -130,7 +130,7 @@ Deploy modules in this order — dependencies are strict:
 
 1. **Create all databases first** -- one `CREATE DATABASE` per module, all can run in parallel.
 2. **Grant cross-database permissions immediately after creating databases** -- any module whose views reference another module's tables needs `GRANT SELECT ON source_db TO target_db WITH GRANT OPTION`. Do this before deploying any SQL.
-3. **Sanitize all SQL files** before execution: `scripts/sanitize-sql.sh src/{product-name}/**/*.sql`
+3. **Sanitize all SQL files** before execution: `scripts/sanitize-sql.sh workspace/src/{product-name}/**/*.sql`
 4. **Deploy sequentially within each phase** -- tables must complete before views, views before seed data, seed data before documentation. Never run dependent files in parallel or in the background.
 5. **Verify data counts** after each phase completes -- query `_Current` views and reference tables.
 6. **Use REPLACE VIEW** (not CREATE VIEW) when redeploying to handle "already exists" errors gracefully.
@@ -141,26 +141,26 @@ Execute files in numbered order within each module, modules in phase order. Use 
 
 ```
 Phase 1 — Memory + Semantic (must complete before Phase 2):
-  src/{product}/01-memory/01-tables.sql
-  src/{product}/01-memory/02-views.sql
-  src/{product}/01-memory/03-documentation.sql
-  src/{product}/02-semantic/01-tables.sql
-  src/{product}/02-semantic/02-views.sql
-  src/{product}/02-semantic/03-seed-data.sql
-  src/{product}/02-semantic/04-documentation.sql
+  workspace/src/{product}/01-memory/01-tables.sql
+  workspace/src/{product}/01-memory/02-views.sql
+  workspace/src/{product}/01-memory/03-documentation.sql
+  workspace/src/{product}/02-semantic/01-tables.sql
+  workspace/src/{product}/02-semantic/02-views.sql
+  workspace/src/{product}/02-semantic/03-seed-data.sql
+  workspace/src/{product}/02-semantic/04-documentation.sql
 
 Phase 2 — Domain + Observability (must complete before Phase 3):
-  src/{product}/03-domain/01-tables.sql
-  src/{product}/03-domain/02-views.sql
-  src/{product}/03-domain/03-indexes.sql
-  src/{product}/03-domain/04-reference-data.sql    (includes data load from source)
-  src/{product}/03-domain/05-documentation.sql
+  workspace/src/{product}/03-domain/01-tables.sql
+  workspace/src/{product}/03-domain/02-views.sql
+  workspace/src/{product}/03-domain/03-indexes.sql
+  workspace/src/{product}/03-domain/04-reference-data.sql    (includes data load from source)
+  workspace/src/{product}/03-domain/05-documentation.sql
 
 Phase 3 — Search + Prediction:
-  src/{product}/04-prediction/01-tables.sql
-  src/{product}/04-prediction/02-views.sql
-  src/{product}/04-prediction/03-feature-load.sql   (computes features from Domain)
-  src/{product}/04-prediction/04-documentation.sql
+  workspace/src/{product}/04-prediction/01-tables.sql
+  workspace/src/{product}/04-prediction/02-views.sql
+  workspace/src/{product}/04-prediction/03-feature-load.sql   (computes features from Domain)
+  workspace/src/{product}/04-prediction/04-documentation.sql
 ```
 
 ### Post-Deployment Validation
@@ -189,10 +189,10 @@ ORDER BY hop_count;
 
 For each data product, create:
 ```
-src/{product-name}/
+workspace/src/{product-name}/
   {nn}-{module}/          # SQL files per module, numbered by deploy order
     {nn}-{object}.sql     # Individual DDL/DML files
-docs/{product-name}/
+workspace/docs/{product-name}/
   requirements.md         # Deliverable 1-2
   design-decisions.md     # Architecture decisions
   build-process.md        # Deliverable 8 — build process analysis (from template)
@@ -200,9 +200,9 @@ docs/{product-name}/
 
 The build process template is at `.agents/skills/data-product-build/templates/build-process-template.md`.
 
-Update `docs/releases.md` when a data product reaches deployment.
+Update `workspace/docs/releases.md` when a data product reaches deployment.
 
-Update `docs/lessons-learned.md` with lessons learned from this data product build: these are not learnings related to the data logic, but to the process of building it, usage of the tools, SQL syntax, etc...
+Update `workspace/docs/lessons-learned.md` with lessons learned from this data product build: these are not learnings related to the data logic, but to the process of building it, usage of the tools, SQL syntax, etc...
 
 ## Key Rules
 

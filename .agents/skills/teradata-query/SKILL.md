@@ -249,7 +249,7 @@ scripts/sanitize-sql.sh path/to/file.sql
 For an entire module directory:
 
 ```bash
-scripts/sanitize-sql.sh src/{product-name}/01-semantic/*.sql
+scripts/sanitize-sql.sh workspace/src/{product-name}/01-semantic/*.sql
 ```
 
 ### One-Shot Query
@@ -261,7 +261,7 @@ tq query "SELECT * FROM dbc.dbcinfo"
 ### Execute a SQL File
 
 ```bash
-tq query --file src/{product-name}/01-semantic/01-data_product_map.sql
+tq query --file workspace/src/{product-name}/01-semantic/01-data_product_map.sql
 ```
 
 ### Execute Multiple SQL Files (deployment)
@@ -275,7 +275,7 @@ scripts/deploy.sh {product-name}
 Or run files manually in order:
 
 ```bash
-for f in src/{product-name}/01-semantic/*.sql; do
+for f in workspace/src/{product-name}/01-semantic/*.sql; do
   echo "--- Executing: $f ---"
   tq query --file "$f"
 done

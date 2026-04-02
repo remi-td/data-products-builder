@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # deploy.sh -- Deploy a data product to Teradata in phased module order
 #
-# Reads SQL files from src/{product}/ and executes them using tq, following
+# Reads SQL files from workspace/src/{product}/ and executes them using tq, following
 # the deployment order: Phase 1 (01-*) then Phase 2 (02-*) then Phase 3 (03-*).
 #
 # Prerequisites:
@@ -37,11 +37,11 @@ if [ -z "$PRODUCT" ]; then
   echo "Usage: deploy.sh <product-name> [--dry-run] [--module <module-dir>]" >&2
   echo "" >&2
   echo "Available products:" >&2
-  ls -d "$PROJECT_ROOT/src"/*/ 2>/dev/null | xargs -I{} basename {} >&2
+  ls -d "$PROJECT_ROOT/workspace/src"/*/ 2>/dev/null | xargs -I{} basename {} >&2
   exit 1
 fi
 
-SRC_DIR="$PROJECT_ROOT/src/$PRODUCT"
+SRC_DIR="$PROJECT_ROOT/workspace/src/$PRODUCT"
 if [ ! -d "$SRC_DIR" ]; then
   echo "deploy: ERROR: $SRC_DIR does not exist" >&2
   exit 1

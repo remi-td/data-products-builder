@@ -6,6 +6,13 @@ This file provides guidance to AI coding agents working with code in this reposi
 
 This agentic system automates the creation of AI-Native Data Products on Teradata. It uses design standards as the single source of truth and agentic prompts to orchestrate multi-module data product design and deployment.
 
+## 3-Tier Git Architecture
+
+This framework interacts with three separate Git repositories to isolate reference material, the agentic engine, and output artifacts:
+1. **Agentic Framework (Here)**: The primary repo housing the agent prompts, skills, and orchestrator scripts.
+2. **Reference Architecture**: The `design-standards/` git submodule serving as the read-only, master source of truth.
+3. **User Workspace**: The `workspace/` directory, an independent Git repository containing all generated artifacts (`workspace/src/` and `workspace/docs/`). 
+
 ## Architecture
 
 **Six-module architecture** — each data product is composed of independently deployable modules, each with its own Teradata database (`{ProductName}_{Module}`):
@@ -31,8 +38,8 @@ AGENTS.md                            ← Framework-agnostic project instructions
 .agents/skills/                      ← Portable agentic skills (tool-agnostic)
 design-standards/design-standards/   ← 8 design standard .md files (git submodule, nested path)
 scripts/                             ← Deployment, sanitization, and tooling scripts
-src/                                 ← Data product source code (per product, per module)
-docs/                                ← Data product documentation and release notes
+workspace/src/                       ← Data product source code (per product, per module)
+workspace/docs/                      ← Data product documentation and release notes
 config/                              ← Connection configurations (gitignored credentials)
 .claude/                             ← Claude Code specific config (thin wrappers, symlinks to .agents/skills/)
 ```

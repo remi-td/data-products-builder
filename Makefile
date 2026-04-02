@@ -1,12 +1,12 @@
 DESIGN_STANDARDS_REPO := https://github.com/NathanG-TD/ai-native-data-products.git
 DESIGN_STANDARDS_DIR  := design-standards
 
-.PHONY: setup setup-claude setup-cursor setup-codex setup-design-standards clean-design-standards help
+.PHONY: setup setup-claude setup-cursor setup-codex setup-design-standards setup-workspace clean-design-standards help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-25s %s\n", $$1, $$2}'
 
-setup: setup-design-standards setup-claude ## Full setup (design standards + Claude Code)
+setup: setup-design-standards setup-claude setup-workspace ## Full setup (design standards + Claude Code + workspace)
 
 setup-design-standards: ## Clone design standards from upstream
 	@if [ -d "$(DESIGN_STANDARDS_DIR)/.git" ]; then \
@@ -17,6 +17,20 @@ setup-design-standards: ## Clone design standards from upstream
 		rm -rf $(DESIGN_STANDARDS_DIR); \
 		git clone $(DESIGN_STANDARDS_REPO) $(DESIGN_STANDARDS_DIR); \
 	fi
+
+setup-workspace: ## Configure the workspace tracking your tools (usage: make setup-workspace [REMOTE=https://...])
+	@if [ ! -d "workspace/.git" ]; then \
+		echo "Initializing local workspace..."; \
+		mkdir -p workspace/src workspace/docs; \
+		cd workspace && git init; \
+		if [ ! -f "README.md" ]; then echo "# Data Products Workspace" > README.md; fi; \
+		git add . && git commit -m "Initial commit" || true; \
+	fi
+	@if [ -n "$(REMOTE)" ]; then \
+		echo "Adding remote $(REMOTE) to workspace..."; \
+		cd workspace && git remote set-url origin $(REMOTE) 2>/dev/null || git remote add origin $(REMOTE); \
+	fi
+	@echo "Workspace is ready at ./workspace"
 
 setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md)
 	@mkdir -p .claude

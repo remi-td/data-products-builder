@@ -6,7 +6,7 @@
 #
 # Usage:
 #   scripts/sanitize-sql.sh file.sql              # sanitize one file (in-place)
-#   scripts/sanitize-sql.sh src/revenue/**/*.sql   # sanitize multiple files
+#   scripts/sanitize-sql.sh workspace/src/revenue/**/*.sql   # sanitize multiple files
 #   scripts/sanitize-sql.sh --check file.sql       # check only, don't modify (exit 1 if dirty)
 
 set -euo pipefail
