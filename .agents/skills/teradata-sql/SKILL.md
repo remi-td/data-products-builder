@@ -116,6 +116,45 @@ CREATE TABLE Example (
 PRIMARY INDEX (col1);
 ```
 
+### Secondary Index syntax
+- Teradata does NOT use standard ANSI `CREATE INDEX name ON table (column)` syntax.
+- Correct Teradata syntax: `CREATE INDEX (column) ON database.table;`
+- Named indexes are not supported in this basic form.
+
+```sql
+-- CORRECT (Teradata):
+CREATE INDEX (customer_key) ON RetailSales_Domain.Customer_H;
+CREATE INDEX (is_current, is_deleted) ON RetailSales_Domain.Customer_H;
+
+-- WRONG (ANSI -- causes error 3706 on Teradata):
+CREATE INDEX idx_customer_key ON RetailSales_Domain.Customer_H (customer_key);
+```
+
+### Reserved word conflicts in table aliases
+- Teradata reserves certain short identifiers. The alias `cm` causes "expected something between ',' and the 'cm' keyword" errors.
+- **Prefer single-letter aliases** (`c`, `e`, `o`, `p`, `f`) or longer descriptive aliases that avoid collisions.
+
+```sql
+-- CORRECT:
+SELECT e.entity_name, c.column_name
+FROM entity_metadata e
+INNER JOIN column_metadata c ON c.table_name = e.table_name;
+
+-- WRONG (cm is reserved):
+SELECT em.entity_name, cm.column_name
+FROM entity_metadata em
+INNER JOIN column_metadata cm ON cm.table_name = em.table_name;
+```
+
+### Cross-database view permissions
+- Views referencing tables in another database require `GRANT SELECT ... WITH GRANT OPTION` from the source database to the target database.
+- This must be done **before** creating the view.
+
+```sql
+-- Grant Prediction database access to read Domain tables
+GRANT SELECT ON RetailSales_Domain TO RetailSales_Prediction WITH GRANT OPTION;
+```
+
 ### ASCII only in all SQL
 - Teradata rejects non-ASCII characters with error **6706: untranslatable character**.
 - LLM-generated text commonly introduces: em dashes, en dashes, smart quotes, arrows.
@@ -207,6 +246,9 @@ When reviewing SQL, check for these common errors:
 - [ ] No trailing comma before closing `)` in CREATE TABLE
 - [ ] No `ORDER BY` in view definitions
 - [ ] All text is ASCII only -- no em dashes, smart quotes, or arrows
+- [ ] Secondary indexes use `CREATE INDEX (col) ON table` syntax (not ANSI)
+- [ ] No `cm` table alias (reserved word) -- use `c` instead
+- [ ] Cross-database views have GRANT SELECT WITH GRANT OPTION
 
 **Metadata:**
 - [ ] All tables and columns have `COMMENT ON` statements (as separate statements)

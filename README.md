@@ -22,11 +22,18 @@ AGENTS.md                ← Framework-agnostic project instructions
   skills/                ← Skill wrappers (frontmatter + import from prompts)
 design-standards/        ← 8 design standard docs (cloned — master source of truth)
 scripts/                 ← Deployment, sanitization, and tooling scripts
-src/                     ← Data product source code (per product, per module)
-docs/                    ← Data product documentation and release notes
-config/                  ← Connection configurations
-.claude/                 ← Claude Code specific (symlinks + pointer to AGENTS.md)
+src/                     ← Produced data product source code (per product, per module)
+docs/                    ← Produced data product documentation and release notes
+config/                  ← Connection configurations for your specific project
 Makefile                 ← Setup automation
+```
+
+## Tool customisation
+We provide a Makefile (see next section) to setup the project for different AI coding tools.
+For example, for Claude Code, you get:
+```
+.claude/                 ← Claude Code specific (symlinks + pointer to AGENTS.md)
+.claude/CLAUDE.md        ← Simply "@../AGENTS.md"
 ```
 
 ## Getting Started
@@ -68,7 +75,3 @@ Portable prompts in `.agents/prompts/`:
 | `data-product-use.md` | Discover and query a deployed data product |
 | `teradata-sql.md` | SQL generation & validation conventions |
 | `teradata-query.md` | Query execution via the tq CLI tool |
-
-## Todo
-
-- [ ] Track changes in design standards and refresh prompts if needed

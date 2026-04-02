@@ -37,9 +37,9 @@ config/                              ← Connection configurations (gitignored c
 .claude/                             ← Claude Code specific config (thin wrappers, symlinks to .agents/skills/)
 ```
 
-## Key Prompts
+## Key Skills
 
-Reusable agentic prompts live in `.agents/prompts/`. These are tool-agnostic — each AI coding tool can consume them via its own integration mechanism.
+Reusable agentic skills live in `.agents/skills/`. These are tool-agnostic — each AI coding tool can consume them via its own integration mechanism.
 
 - **data-product-build** — Orchestrates the full build process from requirements to deployment.
 - **data-product-design** — Designs a data product module by applying design standards strictly.
@@ -50,16 +50,6 @@ Reusable agentic prompts live in `.agents/prompts/`. These are tool-agnostic —
 ## Key Workflows
 
 **Designing a new data product**: Use the `data-product-build` prompt — it follows a 7-deliverable sequence (requirements → logical model → module schemas → integration → deployment plan), stopping for review after each.
-
-## Teradata SQL Conventions (from design standards)
-
-- Boolean columns: `BYTEINT NOT NULL DEFAULT 1/0` with `is_` prefix — never `CHAR(1)`, never `= 'Y'`/`= 'N'`
-- Surrogate keys: `BIGINT GENERATED ALWAYS AS IDENTITY`, named `{table}_key`
-- Timestamps: `TIMESTAMP(6) WITH TIME ZONE`
-- Temporal end date: `DATE '9999-12-31'`
-- Table suffixes: `_H` (history), `_R` (reference), `_Current` (view), `_Enriched` (view)
-- Temporal tables use non-unique `PRIMARY INDEX` — never `UNIQUE PRIMARY INDEX`
-- `COMMENT ON TABLE` and `COMMENT ON COLUMN` required on all objects
 
 ## Project Rules
 

@@ -1,1 +1,0 @@
-../../../.agents/prompts/templates/requirements-template.md
