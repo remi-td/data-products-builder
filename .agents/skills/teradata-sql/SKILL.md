@@ -131,19 +131,39 @@ CREATE INDEX idx_customer_key ON RetailSales_Domain.Customer_H (customer_key);
 ```
 
 ### Reserved word conflicts in table aliases
-- Teradata reserves certain short identifiers. The alias `cm` causes "expected something between ',' and the 'cm' keyword" errors.
-- **Prefer single-letter aliases** (`c`, `e`, `o`, `p`, `f`) or longer descriptive aliases that avoid collisions.
+- Teradata reserves certain short identifiers as keywords. Using them as aliases produces misleading errors like "Table does not exist" or "expected something between ',' and the 'X' keyword".
+- **Known reserved aliases** (do NOT use): `cm`, `qc`, `at`, `by`, `do`, `go`, `if`, `in`, `is`, `no`, `of`, `on`, `or`, `to`
+- **Safe aliases**: Use 3+ character descriptive aliases (`col`, `ent`, `rel`, `mem`, `cb`, `ses`, `stg`, `src`) or single-letter aliases (`c`, `e`, `o`, `p`, `f`, `s`, `a`).
 
 ```sql
 -- CORRECT:
-SELECT e.entity_name, c.column_name
+SELECT e.entity_name, col.column_name
 FROM entity_metadata e
-INNER JOIN column_metadata c ON c.table_name = e.table_name;
+INNER JOIN column_metadata col ON col.table_name = e.table_name;
 
 -- WRONG (cm is reserved):
 SELECT em.entity_name, cm.column_name
 FROM entity_metadata em
 INNER JOIN column_metadata cm ON cm.table_name = em.table_name;
+
+-- WRONG (qc is reserved):
+SELECT qc.recipe_id FROM Query_Cookbook qc;
+-- Use: SELECT cb.recipe_id FROM Query_Cookbook cb;
+```
+
+### COMMENT ON string length limit
+- Teradata limits COMMENT ON strings to **255 characters** (error 5550: "Comment string is longer than permitted").
+- Keep all COMMENT ON TABLE and COMMENT ON COLUMN strings under 255 characters.
+- Move detailed usage instructions, query examples, or acceptance criteria to the Query_Cookbook documentation table instead.
+
+```sql
+-- CORRECT (under 255 chars):
+COMMENT ON VIEW v_Spend_By_Agency IS
+'Agency spend summary by fiscal year - top agencies by obligation in USD and EUR';
+
+-- WRONG (too long -- will fail with error 5550):
+COMMENT ON VIEW v_Spend_By_Agency IS
+'Agency spend summary by fiscal year - supports acceptance criterion 1: top 10 agencies by obligation in USD and EUR. Query with: SELECT * FROM v_Spend_By_Agency WHERE fiscal_year = :fy ORDER BY total_usd DESC QUALIFY ROW_NUMBER() OVER (ORDER BY total_usd DESC) <= 10';
 ```
 
 ### Cross-database view permissions
@@ -247,7 +267,8 @@ When reviewing SQL, check for these common errors:
 - [ ] No `ORDER BY` in view definitions
 - [ ] All text is ASCII only -- no em dashes, smart quotes, or arrows
 - [ ] Secondary indexes use `CREATE INDEX (col) ON table` syntax (not ANSI)
-- [ ] No `cm` table alias (reserved word) -- use `c` instead
+- [ ] No reserved-word aliases (`cm`, `qc`, `at`, `by`, `in`, `is`, `no`, `of`, `on`, `or`, `to`) -- use 3+ char aliases
+- [ ] All COMMENT ON strings are under 255 characters
 - [ ] Cross-database views have GRANT SELECT WITH GRANT OPTION
 
 **Metadata:**

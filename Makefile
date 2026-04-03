@@ -32,7 +32,7 @@ setup-workspace: ## Configure the workspace tracking your tools (usage: make set
 	fi
 	@echo "Workspace is ready at ./workspace"
 
-setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md)
+setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md + handoff dir)
 	@mkdir -p .claude
 	@if [ -L .claude/skills ]; then \
 		echo "  .claude/skills symlink already exists"; \
@@ -44,6 +44,16 @@ setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md)
 		ln -s ../.agents/skills .claude/skills; \
 	fi
 	@echo "  .claude/skills -> .agents/skills"
+	@if [ -L .claude/agents ]; then \
+		echo "  .claude/agents symlink already exists"; \
+	elif [ -d .claude/agents ]; then \
+		echo "  WARNING: .claude/agents is a real directory, replacing with symlink"; \
+		rm -rf .claude/agents; \
+		ln -s ../.agents/agents .claude/agents; \
+	else \
+		ln -s ../.agents/agents .claude/agents; \
+	fi
+	@echo "  .claude/agents -> .agents/agents"
 	@if [ ! -f CLAUDE.md ]; then \
 		echo '@AGENTS.md' > CLAUDE.md; \
 		echo "  Created CLAUDE.md at root"; \
@@ -59,6 +69,8 @@ setup-claude: ## Set up Claude Code (symlinks + CLAUDE.md)
 			echo "  Added .agents/ to .claudeignore"; \
 		fi \
 	fi
+	@mkdir -p handoff
+	@echo "  handoff/ directory ready"
 	@echo "Claude Code ready."
 
 setup-cursor: ## Set up Cursor (.cursorrules from AGENTS.md)
