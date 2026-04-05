@@ -134,6 +134,95 @@ The Architect drives an 8-deliverable sequence. Each deliverable goes through th
 | 7 | Integration & Docs | Brief patterns | Generate docs + joins | Validate completeness |
 | 8 | Build Process Analysis | Brief + template | Generate from template | — |
 
+### Deliverable 8 — Build Process Analysis (MANDATORY)
+
+**This deliverable CANNOT be skipped.** It is the formal closing step of every build. Even if the user says "go all the way" or "proceed without stopping", Deliverable 8 must still be generated before the build is considered complete.
+
+After the data product is deployed and validated, generate a build process analysis document using the template at `.agents/templates/build-process-template.md`. Save it to `workspace/docs/{product-name}/build-process.md`.
+
+This document is for technical reviewers and captures:
+
+- **What was built** — artifact inventory (databases, tables, views, features, indexes, documentation records)
+- **How it was built** — Mermaid diagrams showing agent orchestration, deployment sequence with error locations, data lineage, and semantic discovery graph. **Mermaid syntax rules**: (1) subgraph IDs must be simple identifiers with no spaces or colons — use `subgraph P0[Phase 0 - Setup]` not `subgraph "Phase 0: Setup"`; (2) edge labels must have NO space between arrow and pipe — use `-->|label|` not `--> |label|`; (3) node labels must not contain special characters like `!!`, unescaped quotes, or colons; (4) use hyphens instead of colons in labels
+- **Skill and tool usage** — which skills were explicitly invoked vs applied implicitly, tool call counts by phase, and the detailed call flow tree
+- **Errors and fixes** — every deployment error, root cause, fix applied, and whether it was codified back into a skill
+- **Process timeline** — effort distribution across discovery, generation, deployment, documentation, and skill optimization
+- **Improvement opportunities** — actionable recommendations for process and tooling (not data logic)
+
+This deliverable also includes updating skills with any new lessons learned during the build (Teradata syntax issues, deployment gotchas, tool usage patterns). If errors occurred that are not yet covered by the `teradata-sql` or `teradata-query` skills, add them.
+
+## Deployment Execution Rules
+
+1. **Create all databases first** — one `CREATE DATABASE` per module, all can run in parallel.
+2. **Grant cross-database permissions immediately after creating databases** — any module whose views reference another module's tables needs `GRANT SELECT ON source_db TO target_db WITH GRANT OPTION`. Do this before deploying any SQL.
+3. **Sanitize all SQL files** before execution: `scripts/sanitize-sql.sh workspace/src/{product-name}/**/*.sql`
+4. **Deploy sequentially within each phase** — tables must complete before views, views before seed data, seed data before documentation. Never run dependent files in parallel or in the background.
+5. **Verify data counts** after each phase completes — query `_Current` views and reference tables.
+6. **Use REPLACE VIEW** (not CREATE VIEW) when redeploying to handle "already exists" errors gracefully.
+
+### Deployment File Execution Sequence
+
+Execute files in numbered order within each module, modules in phase order. Use the **teradata-query** skill to run each file.
+
+```
+Phase 1 — Memory + Semantic (must complete before Phase 2):
+  workspace/src/{product}/01-memory/01-tables.sql
+  workspace/src/{product}/01-memory/02-views.sql
+  workspace/src/{product}/01-memory/03-documentation.sql
+  workspace/src/{product}/02-semantic/01-tables.sql
+  workspace/src/{product}/02-semantic/02-views.sql
+  workspace/src/{product}/02-semantic/03-seed-data.sql
+  workspace/src/{product}/02-semantic/04-documentation.sql
+
+Phase 2 — Domain + Observability (must complete before Phase 3):
+  workspace/src/{product}/03-domain/01-tables.sql
+  workspace/src/{product}/03-domain/02-views.sql
+  workspace/src/{product}/03-domain/03-indexes.sql
+  workspace/src/{product}/03-domain/04-reference-data.sql
+  workspace/src/{product}/03-domain/05-documentation.sql
+
+Phase 3 — Search + Prediction (if in scope):
+  workspace/src/{product}/04-search/01-tables.sql
+  ...
+  workspace/src/{product}/05-prediction/01-tables.sql
+  ...
+```
+
+### Post-Deployment Validation
+
+After each phase, verify the deployment:
+
+```sql
+-- After Phase 1: Confirm Semantic module registry
+SELECT module_name, database_name, deployment_status
+FROM {Product}_Semantic.data_product_map WHERE is_active = 1;
+
+-- After Phase 2: Confirm Domain data loaded
+SELECT 'entity_name' AS entity, COUNT(*) AS cnt FROM {Product}_Domain.{Entity}_Current;
+
+-- End-to-end: Test multi-hop path discovery
+SELECT hop_count, path_tables, path_joins
+FROM {Product}_Semantic.v_relationship_paths
+WHERE source_table = '{TableA}' AND target_table = '{TableB}'
+ORDER BY hop_count;
+```
+
+## Output Structure
+
+For each data product, create:
+
+```
+workspace/src/{product-name}/
+  {nn}-{module}/          # SQL files per module, numbered by deploy order
+    {nn}-{object}.sql     # Individual DDL/DML files
+workspace/docs/{product-name}/
+  requirements.md         # Deliverable 1-2
+  design-decisions.md     # Architecture decisions
+  build-process.md        # Deliverable 8 — build process analysis (MANDATORY)
+```
+
+Update `workspace/docs/releases.md` and `workspace/docs/lessons-learned.md` when a data product reaches deployment.
+
 ## Project Rules
 
 - **Three-agent workflow**: Always use the Architect agent to orchestrate builds. It spawns Builder and Reviewer as needed.
