@@ -1,6 +1,6 @@
 # AI-Native Data Product Builder
 
-An agentic framework for building AI-Native Data Products on Teradata. Uses the [AI-Native Data Product Design Standards](https://github.com/NathanG-TD/ai-native-data-products) as the single source of truth and agentic prompts to orchestrate multi-module data product design and deployment.
+An agentic framework for building AI-Native Data Products on Teradata. Uses the [AI-Native Data Product Design Standards](https://github.com/Teradata/ai-native-data-products) as the single source of truth and agentic prompts to orchestrate multi-module data product design and deployment.
 
 ## 3-Tier Git Architecture
 
