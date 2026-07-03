@@ -9,6 +9,7 @@ This agentic system automates the creation of AI-Native Data Products on Teradat
 ## 3-Tier Git Architecture
 
 This framework interacts with three separate Git repositories to isolate reference material, the agentic engine, and output artifacts:
+
 1. **Agentic Framework (Here)**: The primary repo housing the agents, skills, and orchestrator scripts.
 2. **Reference Architecture**: The `design-standards/` git submodule serving as the read-only, master source of truth.
 3. **User Workspace**: The `workspace/` directory, an independent Git repository containing all generated artifacts (`workspace/src/` and `workspace/docs/`).
@@ -28,22 +29,23 @@ Architect ──brief──▶ Builder ──review-request──▶ Reviewer
 
 ### Roles
 
-| | Architect | Builder | Reviewer |
-|---|-----------|---------|----------|
-| **Role** | Senior Technical Lead | Senior Developer | Senior Code Reviewer |
-| **Talks to user** | Yes | No | No |
-| **Generates SQL** | No | Yes | No (describes fixes) |
-| **Runs tq queries** | Yes (profiling + deploy) | No | No |
-| **Reviews code** | No | Self-review only | Yes |
-| **Deploys** | Yes (after user approval) | No | No |
+|                     | Architect                 | Builder          | Reviewer             |
+| ------------------- | ------------------------- | ---------------- | -------------------- |
+| **Role**            | Senior Technical Lead     | Senior Developer | Senior Code Reviewer |
+| **Talks to user**   | Yes                       | No               | No                   |
+| **Generates SQL**   | No                        | Yes              | No (describes fixes) |
+| **Runs tq queries** | Yes (profiling + deploy)  | No               | No                   |
+| **Reviews code**    | No                        | Self-review only | Yes                  |
+| **Deploys**         | Yes (after user approval) | No               | No                   |
 
 ### Skill Assignment
 
-| Skill | Architect | Builder | Reviewer |
-|-------|-----------|---------|----------|
-| `data-product-design` | Yes | Yes | Yes |
-| `teradata-sql` | No | Yes | Yes |
-| `teradata-query` | Yes | No | No |
+| Skill                 | Architect | Builder | Reviewer |
+| --------------------- | --------- | ------- | -------- |
+| `data-product-design` | Yes       | Yes     | Yes      |
+| `teradata-sql`        | No        | Yes     | Yes      |
+| `teradata-query`      | Yes       | No      | No       |
+| `dpds-generate`       | Yes       | No      | No       |
 
 ### The Brief-Build-Review Cycle
 
@@ -59,14 +61,14 @@ Every deliverable follows this cycle:
 
 Each data product is composed of independently deployable modules, each with its own Teradata database (`{ProductName}_{Module}`):
 
-| Module | Database Pattern | Purpose |
-|--------|-----------------|---------|
-| Memory | `{Name}_Memory` | Agent state, learning, and design documentation (Documentation Sub-Module) |
-| Semantic | `{Name}_Semantic` | Metadata layer enabling agent discovery — the "map" of the data product |
-| Domain | `{Name}_Domain` | Core business entities — source of truth |
-| Observability | `{Name}_Observability` | Event tracking, quality monitoring, lineage |
-| Search | `{Name}_Search` | Vector embeddings and similarity search |
-| Prediction | `{Name}_Prediction` | Feature store and ML prediction storage |
+| Module        | Database Pattern       | Purpose                                                                    |
+| ------------- | ---------------------- | -------------------------------------------------------------------------- |
+| Memory        | `{Name}_Memory`        | Agent state, learning, and design documentation (Documentation Sub-Module) |
+| Semantic      | `{Name}_Semantic`      | Metadata layer enabling agent discovery — the "map" of the data product    |
+| Domain        | `{Name}_Domain`        | Core business entities — source of truth                                   |
+| Observability | `{Name}_Observability` | Event tracking, quality monitoring, lineage                                |
+| Search        | `{Name}_Search`        | Vector embeddings and similarity search                                    |
+| Prediction    | `{Name}_Prediction`    | Feature store and ML prediction storage                                    |
 
 **Deployment order matters**: Phase 1 (Memory + Semantic) → Phase 2 (Domain + Observability) → Phase 3 (Search + Prediction). Memory and Semantic must exist before any other module deploys.
 
@@ -97,6 +99,7 @@ Reusable agentic skills live in `.agents/skills/`. These are tool-agnostic — e
 - **data-product-design** — Module architecture, design standards, documentation capture protocol.
 - **teradata-sql** — Teradata DDL/DML syntax rules, conventions, and 27-item validation checklist.
 - **teradata-query** — tq CLI tool for executing queries against Teradata.
+- **dpds-generate** — Generates a living Open Data Mesh DPDS 1.0.0 descriptor document by querying the product's Semantic and Memory modules.
 
 ## Agents
 
@@ -110,29 +113,41 @@ Agent definitions live in `.agents/agents/`. Each AI coding tool projects these 
 
 Agents communicate through structured files in `handoff/` (gitignored, ephemeral). Templates live in `.agents/templates/handoff/`.
 
-| File | Written By | Read By | Purpose |
-|------|-----------|---------|---------|
-| `ARCHITECT-BRIEF.md` | Architect | Builder, Reviewer | Task spec, constraints, acceptance criteria |
-| `REVIEW-REQUEST.md` | Builder | Reviewer, Architect | Files changed, self-review answers |
-| `REVIEW-FEEDBACK.md` | Reviewer | Architect, Builder | Findings, conditions, verdict |
-| `BUILD-LOG.md` | Architect | All | Cumulative record of deliverables and decisions |
-| `SESSION-CHECKPOINT.md` | Architect | All | Session state for resuming across conversations |
+| File                    | Written By | Read By             | Purpose                                         |
+| ----------------------- | ---------- | ------------------- | ----------------------------------------------- |
+| `ARCHITECT-BRIEF.md`    | Architect  | Builder, Reviewer   | Task spec, constraints, acceptance criteria     |
+| `REVIEW-REQUEST.md`     | Builder    | Reviewer, Architect | Files changed, self-review answers              |
+| `REVIEW-FEEDBACK.md`    | Reviewer   | Architect, Builder  | Findings, conditions, verdict                   |
+| `BUILD-LOG.md`          | Architect  | All                 | Cumulative record of deliverables and decisions |
+| `SESSION-CHECKPOINT.md` | Architect  | All                 | Session state for resuming across conversations |
 
 ## Build Workflow
 
 The Architect drives an 8-deliverable sequence. Each deliverable goes through the Brief-Build-Review cycle.
 
-| # | Deliverable | Architect | Builder | Reviewer |
-|---|-------------|-----------|---------|----------|
-| 1 | Requirements & Entity Map | Gather, confirm | — | — |
-| 2 | Logical Data Model | Write brief | Generate ERD | — |
-| 2.5 | Source Profiling | Run tq queries | — | — |
-| 3 | Memory Module Schema | Brief | Generate DDL/views/INSERTs | Validate |
-| 4 | Semantic Module Schema | Brief + seed specs | Generate DDL/views/seeds | Validate |
-| 5 | Domain Module Schema | Brief + profiling | Generate DDL/views/indexes | Validate |
-| 6 | Additional Modules | Brief per module | Generate per module | Validate per module |
-| 7 | Integration & Docs | Brief patterns | Generate docs + joins | Validate completeness |
-| 8 | Build Process Analysis | Brief + template | Generate from template | — |
+| #   | Deliverable                       | Architect                    | Builder                    | Reviewer              |
+| --- | --------------------------------- | ---------------------------- | -------------------------- | --------------------- |
+| 1   | Requirements & Entity Map         | Gather, confirm              | —                          | —                     |
+| 2   | Logical Data Model                | Write brief                  | Generate ERD               | —                     |
+| 2.5 | Source Profiling                  | Run tq queries               | —                          | —                     |
+| 3   | Memory Module Schema              | Brief                        | Generate DDL/views/INSERTs | Validate              |
+| 4   | Semantic Module Schema            | Brief + seed specs           | Generate DDL/views/seeds   | Validate              |
+| 5   | Domain Module Schema              | Brief + profiling            | Generate DDL/views/indexes | Validate              |
+| 6   | Additional Modules                | Brief per module             | Generate per module        | Validate per module   |
+| 7   | Integration & Docs                | Brief patterns               | Generate docs + joins      | Validate completeness |
+| 7.5 | Create DPDS Descriptor (Optional) | Invoke `dpds-generate` skill | —                          | —                     |
+| 8   | Build Process Analysis            | Brief + template             | Generate from template     | —                     |
+
+### Deliverable 7.5 — Create DPDS Descriptor (Optional)
+
+If the customer is using Open Data Mesh or requires DPDS-compliant descriptors,
+run the `dpds-generate` skill after Deliverable 7 is complete and the data product is deployed. 
+
+The Architect runs this directly — no Builder or Reviewer cycle is needed as the output is derived entirely from live metadata. 
+
+Output: `workspace/docs/{product-name}/dpds-descriptor.json`. 
+
+This prompt can also be re-run independently at any time to refresh the descriptor after product changes.
 
 ### Deliverable 8 — Build Process Analysis (MANDATORY)
 
