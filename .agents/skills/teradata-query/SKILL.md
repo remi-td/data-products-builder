@@ -1,6 +1,6 @@
 ---
 name: teradata-query
-description: Install, configure, and use the tq CLI tool (https://github.com/remi-td/tq/) to run Teradata queries -- ad-hoc during development or as part of data product job execution.
+description: Install, configure, and use the tq CLI tool (https://github.com/remi-td/tq/) to run Teradata queries, explore schemas, monitor sessions, and manage database objects from the command line.
 user-invocable: true
 argument-hint: [query or sql-file]
 ---
@@ -11,7 +11,7 @@ You are running Teradata queries using the **tq** CLI tool.
 
 ## What is tq?
 
-tq is a lightweight, Rust-powered CLI client for Teradata databases. It provides one-shot queries, batch SQL file execution, and an interactive REPL -- with no Java dependencies.
+tq is a lightweight, Rust-powered CLI client for Teradata databases. It provides one-shot queries, batch SQL file execution, schema exploration, session monitoring, and an interactive REPL -- with no Java dependencies.
 
 Repository: https://github.com/remi-td/tq/
 
@@ -27,57 +27,33 @@ tq --version
 
 **If missing**, follow the **tq Installation** section below.
 
-### 2. Environment Configuration & Connection
+### 2. Connection Configuration
 
-Try connection sources **in priority order**:
+tq needs a connection to the Teradata database. Check in this order:
 
-#### Option A: `config/environments.yaml` (preferred for project work)
-
-```bash
-cat config/environments.yaml
-```
-
-**If present**, source the connection helper script:
+**Option A: Environment variable (simplest)**
 
 ```bash
-source scripts/tq-connect.sh
+echo $TQ_LOGON
 ```
 
-This sets `TQ_LOGON` and `TQ_LOGMECH` for the session.
+If set, tq is ready. Verify with `tq ping`.
 
-#### Option B: User-provided connection string or environment variable
-
-If `config/environments.yaml` does not exist, the user may provide connection details via an environment variable, a direct string, or other means. Convert whatever they provide to `TQ_LOGON` format (`user:pass@host:port/db`):
+**Option B: Connection profile**
 
 ```bash
-# If the user provides a URI with a scheme prefix (e.g. teradata://user:pass@host:port/db):
-export TQ_LOGON="${USER_PROVIDED_VAR#teradata://}"
-
-# If the user provides a plain connection string:
-export TQ_LOGON="user:pass@host:port/db"
+tq profiles
 ```
 
-> **Important:** Do NOT use pipes (e.g. `echo "$VAR" | sed ...`) to set TQ_LOGON — the pipe leaves stdin in a piped state that conflicts with tq's query argument detection (see **Stdin Conflict** below). Use shell parameter expansion instead.
+If profiles exist, use `tq --profile <name> ping` to test.
 
-#### Option C: No connection details available
+**Option C: Project config file**
 
-Guide the user through setup (see **Environment Setup** below).
+Check if `.tq.toml` exists in the project root with connection profiles.
 
-#### Verify connectivity
+**If nothing is configured**, guide the user through setup (see **Connection Setup** below).
 
-Whichever option was used, confirm with `tq ping` — this is a **database-level** connectivity test (connects to Teradata, executes a query, reports latency), not a network ping:
-
-```bash
-tq ping
-```
-
-You can also pass credentials directly via `-l`/`--logon` without setting environment variables — useful for quick one-off checks:
-
-```bash
-tq -l "user:pass@host:port/db" ping
-```
-
-**If ready**, skip to **Running Queries**.
+**If connection is ready**, skip to **Running Queries**.
 
 ---
 
@@ -86,18 +62,17 @@ tq -l "user:pass@host:port/db" ping
 Install the pre-built binary using the official installer:
 
 ```bash
-export TQ_INSTALL_DIR="${PROJECT_ROOT}/scripts/tq/bin"
 curl -sSL https://raw.githubusercontent.com/remi-td/tq/master/install.sh | sh -s -- --accept-license
 ```
 
 The `--accept-license` flag is required for non-interactive installs (the Teradata driver is bundled and requires license acceptance).
 
-This downloads the correct binary for your platform (macOS/Linux, Intel/ARM), verifies the checksum, and installs to `scripts/tq/bin/tq`.
+This downloads the correct binary for your platform (macOS/Linux, Intel/ARM), verifies the checksum, and installs to `~/.local/bin/tq`.
 
-Add to PATH for the session:
+To install to a custom location:
 
 ```bash
-export PATH="${PROJECT_ROOT}/scripts/tq/bin:$PATH"
+TQ_INSTALL_DIR=/path/to/bin curl -sSL https://raw.githubusercontent.com/remi-td/tq/master/install.sh | sh -s -- --accept-license
 ```
 
 **Verify:**
@@ -106,151 +81,101 @@ export PATH="${PROJECT_ROOT}/scripts/tq/bin:$PATH"
 tq --version
 ```
 
-> **Note:** `scripts/tq/` is gitignored -- the binary is local to each developer's machine.
-
 ---
 
-## Environment Setup
+## Connection Setup
 
-The project uses a dbt-style YAML config at `config/environments.yaml` to manage Teradata connection environments. This file contains credentials and is **gitignored** -- never committed.
+tq supports multiple connection methods. Choose the one that fits the project.
 
-A committed example lives at `config/environments.yaml.example`.
+### Method 1: Environment Variable
 
-### Walk the user through setup:
-
-1. **Copy the example:**
+The simplest approach -- set `TQ_LOGON` for the session:
 
 ```bash
-cp config/environments.yaml.example config/environments.yaml
+export TQ_LOGON="user:password@host:1025/database"
 ```
 
-2. **Ask the user for their connection details:**
-
-> I need your Teradata connection details for the **dev** environment:
-> - **Host** -- Teradata server hostname (e.g. `dev-td.company.com`)
-> - **Port** -- usually `1025`
-> - **Database** -- default database to connect to
-> - **Username**
-> - **Password**
-> - **Auth mechanism** -- TD2 (default), LDAP, KRB5, or TDNEGO
-
-3. **Write the file** with the provided values. Always include at least a `dev` environment and set `target: dev`.
-
-4. **Confirm** the file is gitignored:
+For security, omit the password and use a password file instead:
 
 ```bash
-git check-ignore config/environments.yaml
+export TQ_LOGON="user@host:1025/database"
 ```
 
-### File Format
+### Method 2: Connection Profiles (recommended)
 
-```yaml
-# config/environments.yaml
-target: dev
+Profiles are stored in `~/.tq/config.toml` (user-level) or `.tq.toml` (project-level).
 
-environments:
-  dev:
-    host: dev-td.company.com
-    port: 1025
-    database: dev_sandbox
-    user: my_user
-    password: my_password
-    logmech: TD2
-
-  uat:
-    host: uat-td.company.com
-    port: 1025
-    database: uat_db
-    user: my_user
-    password: my_password
-    logmech: TD2
-
-  prod:
-    host: prod-td.company.com
-    port: 1025
-    database: prod_db
-    user: my_user
-    password: my_password
-    logmech: LDAP
-```
-
-### Switching Environments
-
-To change the active environment, update the `target` key:
-
-```yaml
-target: uat   # now all queries go to UAT
-```
-
-Or the user can request a specific environment when invoking queries: "run this against prod".
-
----
-
-## Connecting tq to an Environment
-
-**Always use `scripts/tq-connect.sh`** to set up the connection. Never export `TQ_LOGON` inline with each tq command -- this exposes the password in shell history and process lists.
+**Create a profile interactively:**
 
 ```bash
-# Connect to the default (target) environment -- do this ONCE per session
-source scripts/tq-connect.sh
-
-# Connect to a specific environment
-source scripts/tq-connect.sh prod
+tq profile add dev
 ```
 
-The script reads `config/environments.yaml`, extracts the environment config, and exports `TQ_LOGON` and `TQ_LOGMECH`. These variables persist for the rest of the shell session -- all subsequent `tq` commands use them automatically.
+**Or create the config file manually.** Ask the user for:
+- **Host** -- Teradata server hostname (e.g., `dev-td.company.com`)
+- **Port** -- usually `1025`
+- **Database** -- default database
+- **Username**
+- **Auth mechanism** -- TD2 (default), LDAP, KRB5, or TDNEGO
 
-**When the user requests a specific environment** (e.g. "run against prod"), re-source the script with the environment name.
+Then write `~/.tq/config.toml`:
 
-**Important:** Always construct `TQ_LOGON` from `config/environments.yaml` -- never ask the user for credentials ad-hoc if the config file exists.
-
----
-
-## Stdin Conflict: Use `--file` in Automated Environments
-
-**Critical:** When running tq from automation tools, CI pipelines, or AI agent harnesses (e.g. Claude Code's Bash tool), stdin is often in a piped state. tq detects this as a second input source and rejects the command with:
-
+```toml
+[profiles.dev]
+host = "dev-td.company.com"
+port = 1025
+database = "dev_db"
+user = "my_user"
+logmech = "TD2"
+password_file = "~/.tq/passwords/dev"
 ```
-Error: Invalid configuration: Multiple input sources provided: query argument, piped stdin.
-```
 
-**Workaround:** Always use `--file` instead of positional query arguments:
+**Set up the password file (secure):**
 
 ```bash
-# WRONG in automated environments:
-tq query "SELECT 1"
-
-# CORRECT — write SQL to a temp file first:
-echo "SELECT 1" > /tmp/q.sql && tq query --file /tmp/q.sql
-
-# CORRECT — for multi-statement or complex queries:
-cat > /tmp/q.sql <<'EOSQL'
-SELECT DatabaseName FROM DBC.DatabasesV
-WHERE DatabaseName LIKE 'MyProduct%'
-ORDER BY DatabaseName
-EOSQL
-tq query --file /tmp/q.sql
+mkdir -p ~/.tq/passwords
+echo "the_password" > ~/.tq/passwords/dev
+chmod 0600 ~/.tq/passwords/dev
 ```
 
-**When does this NOT apply?** Interactive terminal sessions (e.g. the user running tq directly) work fine with positional arguments. The conflict only occurs when stdin is piped by the parent process.
+**Test the profile:**
+
+```bash
+tq --profile dev ping
+```
+
+### Method 3: Project Config (.tq.toml)
+
+For team-shared profiles, create `.tq.toml` in the project root:
+
+```toml
+[profiles.dev]
+host = "dev-td.company.com"
+database = "dev_db"
+user = "shared_dev_user"
+password_file = "~/.tq/passwords/dev"
+
+[profiles.prod]
+host = "prod-td.company.com"
+database = "prod_db"
+logmech = "LDAP"
+password_file = "~/.tq/passwords/prod"
+```
+
+**Important:** Never store passwords in `.tq.toml`. Always use `password_file` pointing to a chmod 0600 file.
+
+### Configuration Precedence
+
+tq resolves configuration in this order (later overrides earlier):
+1. Built-in defaults
+2. User config (`~/.tq/config.toml`)
+3. Project config (`.tq.toml`)
+4. Environment variables (`TQ_LOGON`, `TQ_LOGMECH`, etc.)
+5. Command-line arguments (`--logon`, `--profile`)
 
 ---
 
 ## Running Queries
-
-### Pre-Flight: Sanitize SQL Files
-
-Before executing any generated SQL file, run the sanitizer to replace non-ASCII characters (em dashes, smart quotes, arrows) that Teradata rejects with error 6706:
-
-```bash
-scripts/sanitize-sql.sh path/to/file.sql
-```
-
-For an entire module directory:
-
-```bash
-scripts/sanitize-sql.sh workspace/src/{product-name}/01-semantic/*.sql
-```
 
 ### One-Shot Query
 
@@ -261,54 +186,182 @@ tq query "SELECT * FROM dbc.dbcinfo"
 ### Execute a SQL File
 
 ```bash
-tq query --file workspace/src/{product-name}/01-semantic/01-data_product_map.sql
+tq query --file path/to/script.sql
 ```
 
-### Execute Multiple SQL Files (deployment)
-
-Use the deployment script for automated phased execution:
+### Batch Statements (multi-statement file or stdin)
 
 ```bash
-scripts/deploy.sh {product-name}
-```
+# From a file with multiple statements separated by semicolons
+tq query --file multi_statement.sql
 
-Or run files manually in order:
-
-```bash
-for f in workspace/src/{product-name}/01-semantic/*.sql; do
-  echo "--- Executing: $f ---"
-  tq query --file "$f"
-done
-```
-
-### Batch Statements from Stdin
-
-```bash
+# From stdin
 tq query <<'EOF'
 SELECT CURRENT_DATE;
 SELECT DATABASE;
 EOF
 ```
 
+### Atomic Transactions
+
+Wrap multi-statement execution in a transaction (rollback on failure):
+
+```bash
+tq query --file migration.sql --atomic
+```
+
 ### Export Results
 
 ```bash
 # CSV
-tq query "SELECT * FROM sales_summary" --format csv > report.csv
+tq query "SELECT * FROM sales" --format csv > report.csv
+tq query "SELECT * FROM sales" --format csv --output report.csv
 
 # JSON
 tq query "SELECT * FROM products" --format json > products.json
 ```
 
-### Interactive REPL
+### Limit Rows
+
+```bash
+tq query "SELECT * FROM large_table" --limit 100
+```
+
+### Show Timing
+
+```bash
+tq query "SELECT * FROM orders" --timing
+```
+
+### Variable Substitution (Parameterized SQL)
+
+Use YAML parameter files to inject variables into SQL:
+
+```bash
+tq -p params.yaml query "SELECT * FROM {{target.database}}.{{table_name}}"
+tq -p base.yaml -p overrides.yaml query --file report.sql
+```
+
+Parameter file format:
+
+```yaml
+target:
+  database: PRODUCTION
+table_name: employees
+limit: 100
+```
+
+Environment variables can also be referenced: `{{$ENV.DATABASE_HOST}}`
+
+### Using a Specific Profile
+
+```bash
+tq --profile prod query "SELECT COUNT(*) FROM orders"
+```
+
+---
+
+## Schema Exploration
+
+### List Objects
+
+```bash
+tq list databases              # List all databases
+tq list tables                 # List tables in current database
+tq list tables emp%            # Filter with pattern
+tq list views                  # List views
+```
+
+### Inspect an Object
+
+```bash
+tq inspect employees                  # Full metadata: columns, indexes, size
+tq inspect mydb.employees             # Qualified name
+```
+
+### Show Indexes
+
+```bash
+tq show-indexes employees
+```
+
+### Peek at Data
+
+```bash
+tq peek products              # Preview structure + first rows
+```
+
+### Random Sample
+
+```bash
+tq sample customers 20        # 20 random rows
+```
+
+---
+
+## Monitoring and Administration
+
+### Active Sessions
+
+```bash
+tq sessions                   # List active sessions with CPU/IO metrics
+```
+
+### System Configuration
+
+```bash
+tq sysconfig                  # Version, nodes, AMPs, PEs
+```
+
+### Lock Contention
+
+```bash
+tq locks                      # Current locks and blocking chains
+```
+
+### Query Inspection
+
+```bash
+tq query-inspect <session_id> # Recent queries for a session
+```
+
+### AMP Skew Analysis
+
+```bash
+tq skew                       # Top sessions by skew
+tq skew <session_id>          # Skew detail for a session
+```
+
+### Session History
+
+```bash
+tq history                    # Logon/logoff history and trends
+```
+
+### Execution Plans
+
+```bash
+tq explain "SELECT * FROM employees WHERE dept = 'ENG'"
+```
+
+### Abort a Session
+
+```bash
+tq abort <session_id> --force  # Terminate a session (--force required in batch)
+```
+
+---
+
+## Interactive REPL
 
 For exploratory work:
 
 ```bash
 tq repl
+tq --profile dev repl
 ```
 
-Useful REPL metacommands:
+### REPL Metacommands
 
 | Command | Purpose |
 |---------|---------|
@@ -318,8 +371,22 @@ Useful REPL metacommands:
 | `/sample table_name 20` | Random sample (20 rows) |
 | `/peek table_name` | Preview structure + data |
 | `/sessions` | Monitor active sessions |
+| `/params load file.yaml` | Load parameter file for variable substitution |
+| `/params show` | Show loaded parameters |
+| `/params unload` | Clear loaded parameters |
 
-### Connection Check
+### REPL Options
+
+```bash
+tq repl --default-limit 50       # Limit SELECT results (default: 100)
+tq repl --editor-mode vi         # Vi keybindings (default: emacs)
+tq repl --no-pager               # Disable result paging
+tq repl --enhanced-timing        # Detailed timing breakdown
+```
+
+---
+
+## Connection Check
 
 ```bash
 tq ping
@@ -329,44 +396,21 @@ tq ping
 
 ## Error Handling
 
-### Connection Failures
-
-If `tq ping` or any `tq` command fails with a connection error, **always validate the connection string format before assuming a network issue**:
-
-1. **Check for scheme prefixes:** `TQ_LOGON` must be `user:pass@host:port/db` — no `teradata://`, `jdbc:`, or other URI scheme prefix. If the source variable (e.g. `$DATABASE_URI`) contains a scheme, strip it:
-   ```bash
-   export TQ_LOGON="${DATABASE_URI#teradata://}"
-   ```
-
-2. **Check the string structure:** It must match `user:password@host:port/database`. Common issues:
-   - Missing port (default is `1025`)
-   - Extra path segments or query parameters from JDBC/URI formats
-   - URL-encoded characters that tq doesn't decode (e.g. `%40` instead of `@`)
-
-3. **Inspect the actual value** (mask the password) to verify format:
-   ```bash
-   echo "$TQ_LOGON" | sed 's/:[^:@]*@/:***@/'
-   ```
-
-4. **Only after confirming the string is well-formed**, investigate network issues (host reachability, firewall, VPN, environment not running).
-
-### Query Errors
-
 - If a query fails, tq prints the Teradata error code and message to stderr.
 - For batch file execution, stop on first error -- do not continue executing subsequent files.
-- Always review error output before retrying. Common issues:
+- Common Teradata errors:
   - **3807** -- Object does not exist (check database/table name)
-  - **3706** -- Syntax error (validate SQL with the teradata-sql prompt first)
-  - **2801** -- Authentication failed (check environment config in `config/environments.yaml`)
-  - **6706** -- Untranslatable character (run `scripts/sanitize-sql.sh` on the SQL file)
+  - **3706** -- Syntax error (check SQL syntax)
+  - **2801** -- Authentication failed (check credentials or profile config)
+  - **6706** -- Untranslatable character (check for non-ASCII characters in SQL)
+
+---
 
 ## Key Rules
 
-- **Never hardcode credentials** in SQL files, scripts, or committed configuration.
-- **Use `config/environments.yaml`** as the primary source for connection details. If it doesn't exist, use whatever connection info the user provides. Never ask for credentials ad-hoc if a source already exists.
-- **Set `TQ_LOGON` once per session** -- via `source scripts/tq-connect.sh` (Option A) or by converting user-provided credentials (Option B). Never export `TQ_LOGON` inline with each tq command. Avoid pipes when setting TQ_LOGON -- use shell parameter expansion.
-- **Always sanitize SQL files** with `scripts/sanitize-sql.sh` before execution to strip non-ASCII characters.
-- **Always use `--file`** for executing generated SQL rather than pasting long statements inline.
-- **Follow deployment order** -- Memory + Semantic first, then Domain + Observability, then Search + Prediction.
-- **Validate SQL** with the **teradata-sql** prompt before executing DDL against production.
-- **Confirm environment** before executing against non-dev targets -- always ask the user before running against uat or prod.
+- **Never hardcode credentials** in SQL files, scripts, or command-line arguments visible in shell history.
+- **Use password files** (`--password-file` or profile `password_file`) rather than embedding passwords in `TQ_LOGON` or command-line args.
+- **Use `--file`** for executing SQL files rather than pasting long statements inline.
+- **Use `--format json`** when query results will be processed programmatically by other tools or scripts.
+- **Confirm environment** before executing against non-dev targets -- always confirm with the user before running against staging or production.
+- **Use `--atomic`** for multi-statement migrations that should be all-or-nothing.

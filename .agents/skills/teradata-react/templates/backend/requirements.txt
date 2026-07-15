@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy>=2.0
+teradatasqlalchemy>=20.0
+pydantic>=2.6
+pydantic-settings>=2.2
+cachetools>=5.3
+python-dotenv>=1.0

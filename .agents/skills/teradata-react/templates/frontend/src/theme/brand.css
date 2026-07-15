@@ -1,0 +1,21 @@
+/* Teradata default brand tokens.
+   Override by importing a second stylesheet after this one in main.tsx. */
+:root {
+  --brand-orange: #FF5F02;
+  --brand-navy:   #00233C;
+  --brand-bg:     #FFFFFF;
+  --brand-fg:     #00233C;
+  --brand-muted:  #64748B;
+
+  --chart-1: var(--brand-orange);
+  --chart-2: var(--brand-navy);
+  --chart-3: #0EA5E9;
+  --chart-4: #10B981;
+  --chart-5: #A855F7;
+}
+
+.dark {
+  --brand-bg:    #0B1320;
+  --brand-fg:    #F8FAFC;
+  --brand-muted: #94A3B8;
+}

@@ -17,3 +17,29 @@ handoff/
 .claude/
 .agents/tmp/
 .cursorrules
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node.js dependencies
+node_modules/
+
+# Environment and local configurations (contain credentials/local paths)
+.env
+tools/connections.yaml
+
+# Build binaries and packages
+*.vsix
+
+# Skill allowlist: ignore all skills by default, allow only generic framework skills
+.agents/skills/*
+!.agents/skills/data-product-design/
+!.agents/skills/dpds-generate/
+!.agents/skills/teradata-query/
+!.agents/skills/teradata-sql/
+!.agents/skills/teradata-react/
+!.agents/skills/teradata-source-image/
+!.agents/skills/teradata-sql-jupyter/

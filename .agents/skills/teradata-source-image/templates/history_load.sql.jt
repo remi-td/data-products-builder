@@ -1,0 +1,184 @@
+-- Compiled Source Image History Load SQL
+-- Source Table: {{ source_table }}
+-- Target Table: {{ target_table }}
+-- Mode: {% if use_valid_to %}Closed-ended (valid_to tracking){% else %}Open-ended (valid_from only){% endif %}
+
+-- Ensure target table exists (this will fail if already exists)
+CREATE MULTISET TABLE {{ target_table }}
+(
+    {% for item in columns_with_types -%}
+    {{ item.name }} {{ item.type }},
+    {% endfor -%}
+    {{ valid_period_column }} PERIOD(TIMESTAMP(6)) NOT NULL
+)
+PRIMARY INDEX ({{ key_columns | join(', ') }});
+
+CREATE VOLATILE SET TABLE hist_prep_1 AS {{ target_table }} WITH NO DATA ON COMMIT PRESERVE ROWS;
+CREATE VOLATILE SET TABLE hist_prep_2 AS {{ target_table }} WITH NO DATA ON COMMIT PRESERVE ROWS;
+CREATE VOLATILE SET TABLE hist_prep_3 AS {{ target_table }} WITH NO DATA ON COMMIT PRESERVE ROWS;
+
+-- Step 0: Clean up and recreate volatile staging tables
+BEGIN TRANSACTION;
+LOCK TABLE {{ target_table }} FOR WRITE;
+
+-- Step 1: Deduplicate incoming source rows and resolve conflicts
+INSERT INTO hist_prep_1 (
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+)
+SELECT 
+    {{ key_columns | join(', ') }}
+    {% if use_valid_to -%}
+    , PERIOD({{ time_change_column }}, {{ valid_to_column }} (timestamp))
+    {%- else -%}
+    , PERIOD({{ time_change_column }}, '9999-12-31 23:59:59.999999' (timestamp))
+    {%- endif %}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+FROM {{ source_table }}
+QUALIFY RANK() OVER (
+    PARTITION BY {{ key_columns | join(', ') }}, {{ time_change_column }} 
+    ORDER BY {% if use_valid_to %}{{ valid_to_column }} DESC, {% endif %}{{ tracked_columns | join(', ') }}
+) = 1;
+
+-- Step 2: Adjust overlapping slices and construct history timelines
+INSERT INTO hist_prep_2 (
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+)
+SELECT 
+    {{ key_columns | join(', ') }}
+    , PERIOD(
+        BEGIN({{ valid_period_column }}) 
+        , COALESCE(
+            LEAD(BEGIN({{ valid_period_column }})) OVER (PARTITION BY {{ key_columns | join(', ') }} ORDER BY BEGIN({{ valid_period_column }})), 
+            ('9999-12-31 23:59:59.999999' (timestamp))
+        )
+    )
+    {%- if use_valid_to %}
+    P_INTERSECT {{ valid_period_column }}
+    {%- endif %} AS new_{{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+FROM 
+(
+    SELECT 
+        {% for col in key_columns %}
+        s.{{ col }},
+        {% endfor %}
+        s.{{ valid_period_column }}
+        {% for col in tracked_columns %}, s.{{ col }}{% endfor %},
+        'S' as origin 
+    FROM hist_prep_1 s
+    UNION
+    SELECT 
+        {% for col in key_columns %}
+        t.{{ col }},
+        {% endfor %}
+        t.{{ valid_period_column }}
+        {% for col in tracked_columns %}, t.{{ col }}{% endfor %},
+        'T' as origin 
+    FROM {{ target_table }} t
+    WHERE EXISTS
+    (
+        SELECT 1 
+        FROM hist_prep_1 s 
+        WHERE {% for col in key_columns %}{% if not loop.first %}AND {% endif %}s.{{ col }} = t.{{ col }} {% endfor %}
+        AND s.{{ valid_period_column }} OVERLAPS t.{{ valid_period_column }}
+    )
+    AND NOT EXISTS
+    (
+        SELECT 1 
+        FROM hist_prep_1 s 
+        WHERE {% for col in key_columns %}{% if not loop.first %}AND {% endif %}s.{{ col }} = t.{{ col }} {% endfor %}
+        AND (
+            BEGIN(s.{{ valid_period_column }}) = BEGIN(t.{{ valid_period_column }})
+            {%- if use_valid_to %}
+            OR s.{{ valid_period_column }} CONTAINS t.{{ valid_period_column }}
+            {%- endif %}
+        )
+    )
+    {% if use_valid_to -%}
+    UNION ALL
+    SELECT 
+        {% for col in key_columns %}
+        t.{{ col }},
+        {% endfor %}
+        PERIOD(
+            END(s.{{ valid_period_column }}) 
+            , END(t.{{ valid_period_column }})
+        ) as {{ valid_period_column }}
+        {% for col in tracked_columns %}, t.{{ col }}{% endfor %},
+        'T' as origin
+    FROM {{ target_table }} t
+    JOIN hist_prep_1 s 
+        ON {% for col in key_columns %}{% if not loop.first %}AND {% endif %}s.{{ col }} = t.{{ col }} {% endfor %}
+        AND t.{{ valid_period_column }} CONTAINS s.{{ valid_period_column }}
+        AND END(s.{{ valid_period_column }}) < END(t.{{ valid_period_column }})
+    {%- endif %}
+) a
+QUALIFY (new_{{ valid_period_column }} <> a.{{ valid_period_column }}) OR origin = 'S';
+
+-- Step 3: Compact contiguous slices with identical values (history compaction)
+INSERT INTO hist_prep_3 (
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+)
+SELECT 
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+FROM TABLE 
+(
+    TD_SYSFNLIB.TD_NORMALIZE_MEET
+    (
+        NEW VARIANT_TYPE(
+            {% for col in key_columns %}subtbl.{{ col }}, {% endfor %}
+            {%- for col in tracked_columns %}subtbl.{{ col }}{% if not loop.last %}, {% endif %}{% endfor %}
+        ), 
+        subtbl.{{ valid_period_column }}
+    )
+    RETURNS (
+        {% for item in columns_with_types %}{{ item.name }} {{ item.type }}, {% endfor %}{{ valid_period_column }} PERIOD(TIMESTAMP(6))
+    )
+    HASH BY {{ key_columns | join(', ') }}
+    LOCAL ORDER BY {{ key_columns | join(', ') }}, {{ tracked_columns | join(', ') }}, {{ valid_period_column }}
+)     
+AS DT(
+    {% for item in columns_with_types %}{{ item.name }}, {% endfor %}{{ valid_period_column }}
+);
+
+-- Step 4: Discard no-op updates (where target exactly matches prepared output)
+DELETE FROM hist_prep_3 t
+WHERE EXISTS
+(
+    SELECT 1 FROM {{ target_table }} s 
+    WHERE {% for col in key_columns %}{% if not loop.first %}AND {% endif %}s.{{ col }} = t.{{ col }} {% endfor %}
+    AND s.{{ valid_period_column }} = t.{{ valid_period_column }}
+    {% for col in tracked_columns %}
+    AND (s.{{ col }} = t.{{ col }} OR (s.{{ col }} IS NULL AND t.{{ col }} IS NULL))
+    {% endfor %}
+);
+
+-- Step 5: Delete overlapped records from target and apply new/updated history
+DELETE FROM {{ target_table }} t
+WHERE EXISTS
+(
+    SELECT 1 FROM hist_prep_3 s 
+    WHERE {% for col in key_columns %}{% if not loop.first %}AND {% endif %}s.{{ col }} = t.{{ col }} {% endfor %}
+    AND s.{{ valid_period_column }} OVERLAPS t.{{ valid_period_column }}
+);
+
+INSERT INTO {{ target_table }} (
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+)
+SELECT 
+    {{ key_columns | join(', ') }}
+    , {{ valid_period_column }}
+    {% for col in tracked_columns %}, {{ col }}{% endfor %}
+FROM hist_prep_3;
+
+END TRANSACTION;
