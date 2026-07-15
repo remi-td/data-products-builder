@@ -38,8 +38,4 @@ tools/connections.yaml
 .agents/skills/*
 !.agents/skills/data-product-design/
 !.agents/skills/dpds-generate/
-!.agents/skills/teradata-query/
-!.agents/skills/teradata-sql/
-!.agents/skills/teradata-react/
 !.agents/skills/teradata-source-image/
-!.agents/skills/teradata-sql-jupyter/
