@@ -4,7 +4,6 @@ Proposed additions to the portable agentic skills, derived from lessons learned 
 
 | File | Skill | CRs | Source |
 |------|-------|-----|--------|
-| `teradata-sql.md` | teradata-sql | 2 | source-image build — FastLoad errors & lossless typing |
 | `teradata-source-image.md` | teradata-source-image | 2 | source-image redeployment — FastLoad lock & column count mismatch |
 | `data-product-design.md` | data-product-design | 1 | wide-table build — profiling timeout on wide tables |
 
