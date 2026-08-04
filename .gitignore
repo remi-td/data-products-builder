@@ -30,6 +30,7 @@ node_modules/
 # Environment and local configurations (contain credentials/local paths)
 .env
 tools/connections.yaml
+Teradata
 
 # Build binaries and packages
 *.vsix

@@ -99,6 +99,20 @@ When using the batched-autocommit pattern, always:
 
 Reference implementation: `workspace/src/{product-name}/scripts/load_staging_resume.py`
 
+## Staging Table Design: NO PRIMARY INDEX (NoPI)
+
+For staging/landing tables (e.g., `stg_*` tables loaded via FastLoad or other database load protocol), always define them with `NO PRIMARY INDEX` (NoPI).
+
+> [!IMPORTANT]
+> **Why NoPI Staging?** 
+> We cannot assume the distribution of colums value before it is loaded and profiled in database. Even when we have confidence that certain key columns are evenly distributesm flat files are often organized sequentially.
+> - If a staging table uses a Primary Index (PI) on such columns, **100% of the data will hash to a single AMP**, at least during a portion of the load, diminishing or eliminating the parallelism benefits.
+> - Using `NO PRIMARY INDEX` allows Teradata to distribute incoming FastLoad blocks all AMPs and maximizing the parallelism.
+
+> [!TIP]
+> **Persistent Source-Image Tables should be Indexed**:
+> While temporary staging landing tables should be NoPI for optimal parallel loading, the actual persistent source image tables (which are historized and access-ready) **must be defined with a proper Primary Index (`PRIMARY INDEX`)**. This index should be chosen carefully based on the primary key, data distribution, and query patterns to ensure optimal lookup, join, and merge performance.
+
 ## Column Count Derivation — Always Read the File Header
 
 Never assume column counts from codebooks, data dictionaries, or architect briefs. Column counts must always be derived from the **actual source file header**:

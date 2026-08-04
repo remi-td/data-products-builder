@@ -230,6 +230,7 @@ For each data product, create:
 workspace/src/{product-name}/
   {nn}-{module}/          # SQL files per module, numbered by deploy order
     {nn}-{object}.sql     # Individual DDL/DML files
+  scripts/                # Data-product-specific load, ingestion, or orchestration scripts
 workspace/docs/{product-name}/
   requirements.md         # Deliverable 1-2
   design-decisions.md     # Architecture decisions
@@ -246,3 +247,4 @@ Update `workspace/docs/releases.md` and `workspace/docs/lessons-learned.md` when
 - **Nothing deploys without user approval**: Architect confirms environment and gets explicit go-ahead.
 - **Source profiling before SQL**: Never generate Domain SQL without profiling source tables first.
 - **File-based handoffs**: Agents communicate via `handoff/` files, not conversation.
+- **Product scripts location**: Never write data-product-specific load, ingestion, or orchestration scripts to the top-level `scripts/` directory (which is reserved for framework scripts). All scripts relating to a specific data product must be saved in `workspace/src/{product-name}/scripts/`.
