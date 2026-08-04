@@ -50,9 +50,9 @@ CLAUDE.md                ← Simply "@AGENTS.md" (pointer at root)
 # 1. Clone this repo
 git clone <this-repo-url> && cd ai-native-data-products
 
-# 2. Full setup (clones design standards, configures tool, and initializes local workspace)
-# Optionally, link the workspace to a remote data-products repository:
-make setup [REMOTE=https://github.com/your-org/data-products.git]
+# 2. Full setup (clones design standards, configures tool, and initializes or clones workspace repo)
+# Pass WORKSPACE_REPO to clone an existing data products workspace:
+make setup [WORKSPACE_REPO=https://github.com/your-org/data-products.git]
 
 # Use these if you are not using Claude Code:
 # make setup-cursor
@@ -67,12 +67,12 @@ make setup [REMOTE=https://github.com/your-org/data-products.git]
 
 | Target | Description |
 |--------|-------------|
-| `make setup [REMOTE=...]` | Full setup: clone design standards + configure Claude Code + init local workspace (with optional remote) |
+| `make setup [WORKSPACE_REPO=...]` | Full setup: clone design standards + configure Claude Code + init/clone workspace |
 | `make setup-design-standards` | Clone or update design standards from upstream |
 | `make setup-claude` | Create `.claude/` symlinks and CLAUDE.md pointer |
 | `make setup-cursor` | Generate `.cursorrules` from AGENTS.md |
 | `make setup-codex` | No-op (Codex reads AGENTS.md natively) |
-| `make setup-workspace` | Initializes `workspace/` or sets up a remote for tracking generated files |
+| `make setup-workspace` | Initializes `workspace/` or clones/links a remote workspace repo |
 | `make clean-design-standards` | Remove cloned design standards |
 | `make help` | Show all targets |
 

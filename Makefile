@@ -18,17 +18,27 @@ setup-design-standards: ## Clone design standards from upstream
 		git clone $(DESIGN_STANDARDS_REPO) $(DESIGN_STANDARDS_DIR); \
 	fi
 
-setup-workspace: ## Configure the workspace tracking your tools (usage: make setup-workspace [REMOTE=https://...])
-	@if [ ! -d "workspace/.git" ]; then \
-		echo "Initializing local workspace..."; \
-		mkdir -p workspace/src workspace/docs; \
+setup-workspace: ## Configure workspace (usage: make setup-workspace [WORKSPACE_REPO=https://...])
+	@URL="$(WORKSPACE_REPO)"; \
+	if [ -z "$$URL" ]; then URL="$(REMOTE)"; fi; \
+	if [ ! -d "workspace" ]; then \
+		if [ -n "$$URL" ]; then \
+			echo "Cloning workspace repository from $$URL..."; \
+			git clone "$$URL" workspace; \
+		else \
+			echo "Initializing local workspace..."; \
+			mkdir -p workspace/src workspace/docs; \
+			cd workspace && git init; \
+			if [ ! -f "README.md" ]; then echo "# Data Products Workspace" > README.md; fi; \
+			git add . && git commit -m "Initial commit" || true; \
+		fi; \
+	elif [ ! -d "workspace/.git" ]; then \
+		echo "Initializing git repository in existing workspace directory..."; \
 		cd workspace && git init; \
-		if [ ! -f "README.md" ]; then echo "# Data Products Workspace" > README.md; fi; \
-		git add . && git commit -m "Initial commit" || true; \
-	fi
-	@if [ -n "$(REMOTE)" ]; then \
-		echo "Adding remote $(REMOTE) to workspace..."; \
-		cd workspace && git remote set-url origin $(REMOTE) 2>/dev/null || git remote add origin $(REMOTE); \
+		if [ -n "$$URL" ]; then git remote add origin "$$URL"; fi; \
+	elif [ -n "$$URL" ]; then \
+		echo "Setting remote $$URL in workspace..."; \
+		cd workspace && git remote set-url origin "$$URL" 2>/dev/null || git remote add origin "$$URL"; \
 	fi
 	@echo "Workspace is ready at ./workspace"
 
